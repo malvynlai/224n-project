@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import os
+from typing import List
 import pandas as pd
 import numpy as np
 
@@ -43,6 +44,14 @@ class Arguments(Tap):
 
     # Continue from the previous run
     continue_from_last_run_path: str = None
+
+    # Multi-generator arguments
+    generator_model_names: List[str] = None
+    curator_model_name: str = None
+
+    # Local model arguments (download and run models locally instead of API)
+    use_local_models: bool = False
+    quantization: str = "4bit"
 
     # Additional save-path-related arguments
     save_directory: str = "results"
@@ -91,6 +100,10 @@ def main(args: Arguments):
     # Initialize the language model
     model = LanguageModel(
         model_name=args.model_name,
+        generator_model_names=args.generator_model_names,
+        curator_model_name=args.curator_model_name,
+        use_local_models=args.use_local_models,
+        quantization=args.quantization,
     )
 
     # Add a flag to the save path if the code execution is not allowed

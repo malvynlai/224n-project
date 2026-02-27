@@ -1,5 +1,6 @@
 import numpy as np
 import tiktoken
+from collections import Counter
 from typing import List, Tuple
 from sklearn.metrics.pairwise import cosine_similarity
 from .utils.execute_code import extract_and_run_python_code
@@ -10,49 +11,56 @@ from functools import partial
 class LanguageModel:
     def __init__(self,
         model_name: str,
+        generator_model_names: List[str] = None,
+        curator_model_name: str = None,
+        use_local_models: bool = False,
+        quantization: str = "4bit",
     ) -> None:
         """
         LanguageModel class to interact with different language models.
 
         Arguments:
-            model_name : str : The name of the language model to use.
-            api_key : str : The API key for the model.
-
-        Raises:
-            ValueError : If the model name is not found.
+            model_name : str : The name of the language model to use (default for single-model approaches).
+            generator_model_names : List[str] : Optional list of model names for multi-generator approaches.
+            curator_model_name : str : Optional separate model name for the curator in multi-generator approaches.
+            use_local_models : bool : If True, load models locally via HuggingFace transformers instead of API.
+            quantization : str : Quantization mode for local models ("4bit", "8bit", or "none").
         """
 
         self.model_name = model_name
+        self.use_local_models = use_local_models
 
-        # Load the client for the model based on the model name
-        if self.model_name in [
-            "openai/gpt-4o-mini", "openai/gpt-4o-mini-2024-07-18",
-            "openai/gpt-4o", "openai/gpt-4o-2024-08-06", "openai/gpt-4o-2024-11-20",
-            "openai/gpt-3.5-turbo",
-            "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "openai/o3-mini", "openai/o3-mini-2025-01-31",
-            "openai/o1", "openai/o1-2024-12-17",
-            "anthropic/claude-3-5-sonnet-latest", "anthropic/claude-3-5-sonnet-20241022",
-            "anthropic/claude-3-5-haiku-latest", "anthropic/claude-3-5-haiku-20241022",
-            "anthropic/claude-3-7-sonnet-latest", "anthropic/claude-3-7-sonnet-20250219",
-            "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-            "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "together_ai/deepseek-ai/DeepSeek-R1",
-            "together_ai/deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-            "together_ai/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-            "together_ai/Qwen/Qwen2.5-Coder-32B-Instruct",
-            "together_ai/Qwen/QwQ-32B",
-            "together_ai/Qwen/Qwen2-72B-Instruct",
-            "together_ai/Qwen/Qwen2.5-7B-Instruct-Turbo",
-            "together_ai/Qwen/Qwen2.5-72B-Instruct-Turbo",
-            "gemini/gemini-2.0-flash",
-            "ollama/llama3:70b",
-        ]:
-            self.client = partial(completion, model=self.model_name)
+        if use_local_models:
+            from .local_model_manager import LocalModelManager, LocalCompletionWrapper
+            self.local_manager = LocalModelManager(quantization=quantization)
+            self.client = LocalCompletionWrapper(self.local_manager, self.model_name)
         else:
-            raise ValueError(f"Model '{model_name}' not found.")
-        
+            self.local_manager = None
+            self.client = partial(completion, model=self.model_name)
+
+        self.generator_clients = None
+        self.generator_model_names_list = None
+        if generator_model_names is not None:
+            self.generator_model_names_list = generator_model_names
+            if use_local_models:
+                self.generator_clients = [
+                    LocalCompletionWrapper(self.local_manager, name)
+                    for name in generator_model_names
+                ]
+            else:
+                self.generator_clients = [
+                    partial(completion, model=name) for name in generator_model_names
+                ]
+
+        self.curator_client = None
+        self.curator_model_name = None
+        if curator_model_name is not None:
+            self.curator_model_name = curator_model_name
+            if use_local_models:
+                self.curator_client = LocalCompletionWrapper(self.local_manager, curator_model_name)
+            else:
+                self.curator_client = partial(completion, model=curator_model_name)
+
         self.gpt4Tokenizer = tiktoken.encoding_for_model('gpt-4o')
         
 
@@ -63,7 +71,9 @@ class LanguageModel:
         tokens = self.gpt4Tokenizer.encode(text)
         return len(tokens)
 
-    def generate(self,
+    def generate_with_client(self,
+        client,
+        model_name: str,
         history: List[str],
         temperature: float = 0.1,
         max_tokens: int = 2048,
@@ -74,52 +84,29 @@ class LanguageModel:
         final_output: str = ""
     ) -> str:
         """
-        Generate a response from the language model.
-
-        Arguments:
-            history : List[str] : The conversation history.
-            temperature : float : The sampling temperature for the model.
-            max_tokens : int : The maximum number of tokens to generate.
-            current_depth : int : The current depth of the conversation.
-            max_depth_num_rounds : int : The maximum number of rounds allowed.
-            allow_code_execution : bool : Whether to allow code execution.
-            code_execution_flag : str : The flag to trigger code execution.
-            final_output : str : The final output to return.
-
-        Returns:
-            str : The final output of the conversation.
-
-        Raises:
-            ValueError : If the history is empty.
+        Generate a response using a specific client and model name.
+        This is the core generation method that all other generation methods delegate to.
         """
         if len(history) == 0:
             raise ValueError("History must contain at least one message.")
-        
 
-        # Generate the response from the language model
-        output = self.client(
+        output = client(
             messages=history,
-            model=self.model_name,
+            model=model_name,
             temperature=temperature,
             max_completion_tokens=max_tokens,
         ).choices[0].message["content"]
 
-        # If Python code execution is allowed, execute the code
         pre_code_execution_flag = output.split(code_execution_flag)[0].strip()
         if allow_code_execution and code_execution_flag in output and '```' == pre_code_execution_flag[-3:]:
             if code_execution_flag in output:
                 output_prefix = output.split(code_execution_flag)[0].strip()
             else:
-                # TODO (msuzgun): This is a temporary solution. We may want to find a better way to handle this.
                 output_prefix = output
             executed_code = extract_and_run_python_code(output_prefix)
             executed_code = executed_code.strip()
             current_output = f"{output_prefix}\n{code_execution_flag}\n\n{executed_code}"
             final_output = f"{final_output}\n\n{current_output}".strip()
-            # import pdb; pdb.set_trace()
-            # print(f"*** This code has been executed:\n{executed_code}\n\n")
-            # print(f"***And the output is:\n{current_output}")
-            # If the current depth is less than or equal to the maximum depth, add a new message to the history
             if current_depth <= max_depth_num_rounds:
                 warning_txt = ""
                 if current_depth == max_depth_num_rounds:
@@ -129,7 +116,9 @@ class LanguageModel:
                     {"role": "user", "content": f"Proceed with any additional steps required and provide the completed solution. If everything is already complete, type FINAL ANSWER and submit it in the expected format. If you are stucked, please try alternative methods to solve the problem and provide the final solution.{warning_txt}"}
                 ]
                 history += new_messages
-                return self.generate(
+                return self.generate_with_client(
+                    client=client,
+                    model_name=model_name,
                     history=history,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -143,10 +132,35 @@ class LanguageModel:
                 final_output = f"{final_output}\n\n{current_output}".strip()
                 return final_output
         else:
-            # If code execution is not allowed or no code block is found, return the final output
-            # Add the output to the final output
             final_output = f"{final_output}\n\n{output}".strip()
             return final_output
+
+    def generate(self,
+        history: List[str],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+        current_depth: int = 1,
+        max_depth_num_rounds: int = 3,
+        allow_code_execution: bool = True,
+        code_execution_flag: str = "EXECUTE CODE!",
+        final_output: str = ""
+    ) -> str:
+        """
+        Generate a response from the default language model.
+        Delegates to generate_with_client using self.client and self.model_name.
+        """
+        return self.generate_with_client(
+            client=self.client,
+            model_name=self.model_name,
+            history=history,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            current_depth=current_depth,
+            max_depth_num_rounds=max_depth_num_rounds,
+            allow_code_execution=allow_code_execution,
+            code_execution_flag=code_execution_flag,
+            final_output=final_output,
+        )
 
     def advanced_generate(self,
         approach_name: str,
@@ -423,6 +437,77 @@ class LanguageModel:
                 "final_answer": generator_answer,
                 "final_output": generator_output,
                 "final_cheatsheet": curated_cheatsheet,
+            }
+        elif approach_name == "MultiGenerator_Cumulative":
+            if cheatsheet is None:
+                raise ValueError("Cheatsheet must be provided for MultiGenerator_Cumulative approach.")
+            if cheatsheet_template is None:
+                raise ValueError("Cheatsheet template must be provided for MultiGenerator_Cumulative approach.")
+            if self.generator_clients is None or len(self.generator_clients) == 0:
+                raise ValueError("generator_model_names must be provided for MultiGenerator_Cumulative approach.")
+
+            curator_client = self.curator_client if self.curator_client is not None else self.client
+            curator_model = self.curator_model_name if self.curator_model_name is not None else self.model_name
+
+            generator_prompt = generator_template.replace("[[QUESTION]]", input_txt).replace("[[CHEATSHEET]]", cheatsheet)
+            current_cheatsheet = cheatsheet
+
+            # Step 1: Run all generators independently
+            all_generator_outputs = []
+            all_generator_answers = []
+            generator_steps = []
+
+            for i, (gen_client, gen_model_name) in enumerate(zip(self.generator_clients, self.generator_model_names_list)):
+                gen_history = [{"role": "user", "content": generator_prompt}]
+                gen_output = self.generate_with_client(
+                    client=gen_client,
+                    model_name=gen_model_name,
+                    history=gen_history,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    allow_code_execution=allow_code_execution,
+                    code_execution_flag=code_execution_flag,
+                )
+                gen_answer = extract_answer(gen_output)
+                all_generator_outputs.append(gen_output)
+                all_generator_answers.append(gen_answer)
+                generator_steps.append({
+                    "generator_index": i,
+                    "generator_model": gen_model_name,
+                    "generator_output": gen_output,
+                    "generator_answer": gen_answer,
+                })
+
+            # Step 2: Pick final answer via majority vote
+            answer_counts = Counter(all_generator_answers)
+            final_answer = answer_counts.most_common(1)[0][0]
+
+            # Step 3: Concatenate all outputs for the curator
+            combined_outputs = ""
+            for i, (gen_output, gen_model_name) in enumerate(zip(all_generator_outputs, self.generator_model_names_list)):
+                combined_outputs += f"### Generator {i+1} ({gen_model_name}) Output:\n{gen_output}\n---\n\n"
+
+            # Step 4: Curator updates the cheatsheet
+            cheatsheet_prompt = cheatsheet_template.replace("[[QUESTION]]", input_txt).replace("[[MODEL_ANSWER]]", combined_outputs).replace("[[PREVIOUS_CHEATSHEET]]", current_cheatsheet)
+            cheatsheet_history = [{"role": "user", "content": cheatsheet_prompt}]
+            cheatsheet_output = self.generate_with_client(
+                client=curator_client,
+                model_name=curator_model,
+                history=cheatsheet_history,
+                temperature=temperature,
+                max_tokens=2*max_tokens,
+                allow_code_execution=False,
+            )
+            new_cheatsheet = extract_cheatsheet(response=cheatsheet_output, old_cheatsheet=current_cheatsheet)
+
+            return {
+                "input_txt": input_txt,
+                "steps": generator_steps,
+                "all_generator_answers": all_generator_answers,
+                "curator_model": curator_model,
+                "final_answer": final_answer,
+                "final_cheatsheet": new_cheatsheet,
+                "final_output": combined_outputs,
             }
         else:
             raise ValueError(f"Approach '{approach_name}' not found.")
