@@ -438,6 +438,53 @@ class LanguageModel:
                 "final_output": generator_output,
                 "final_cheatsheet": curated_cheatsheet,
             }
+        elif approach_name == "MultiGenerator":
+            if self.generator_clients is None or len(self.generator_clients) == 0:
+                raise ValueError("generator_model_names must be provided for MultiGenerator approach.")
+
+            generator_prompt = generator_template.replace("[[QUESTION]]", input_txt).replace("[[CHEATSHEET]]", "(empty)")
+
+            all_generator_outputs = []
+            all_generator_answers = []
+            generator_steps = []
+
+            for i, (gen_client, gen_model_name) in enumerate(zip(self.generator_clients, self.generator_model_names_list)):
+                gen_history = [{"role": "user", "content": generator_prompt}]
+                gen_output = self.generate_with_client(
+                    client=gen_client,
+                    model_name=gen_model_name,
+                    history=gen_history,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    allow_code_execution=allow_code_execution,
+                    code_execution_flag=code_execution_flag,
+                )
+                gen_answer = extract_answer(gen_output)
+                all_generator_outputs.append(gen_output)
+                all_generator_answers.append(gen_answer)
+                generator_steps.append({
+                    "generator_index": i,
+                    "generator_model": gen_model_name,
+                    "generator_output": gen_output,
+                    "generator_answer": gen_answer,
+                })
+
+            answer_counts = Counter(all_generator_answers)
+            final_answer = answer_counts.most_common(1)[0][0]
+
+            combined_outputs = ""
+            for i, (gen_output, gen_model_name) in enumerate(zip(all_generator_outputs, self.generator_model_names_list)):
+                combined_outputs += f"### Generator {i+1} ({gen_model_name}) Output:\n{gen_output}\n---\n\n"
+
+            return {
+                "input_txt": input_txt,
+                "steps": generator_steps,
+                "all_generator_answers": all_generator_answers,
+                "final_answer": final_answer,
+                "final_cheatsheet": None,
+                "final_output": combined_outputs,
+            }
+
         elif approach_name == "MultiGenerator_Cumulative":
             if cheatsheet is None:
                 raise ValueError("Cheatsheet must be provided for MultiGenerator_Cumulative approach.")
