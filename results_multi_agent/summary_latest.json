@@ -1,0 +1,32 @@
+[
+  {
+    "generators": [
+      "Qwen2.5-1.5B-Instruct",
+      "Qwen2.5-3B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-7B-Instruct",
+    "approach": "MultiGenerator",
+    "dataset": "AIME_2024",
+    "accuracy": 0.0,
+    "correct": 0,
+    "total": 15,
+    "elapsed_s": 1931.3,
+    "output_path": "results_multi_agent/AIME_2024/Qwen2.5-1.5B-Instruct+Qwen2.5-3B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-7B-Instruct_MultiGenerator_20260227-141717.jsonl"
+  },
+  {
+    "generators": [
+      "Qwen2.5-1.5B-Instruct",
+      "Qwen2.5-3B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-7B-Instruct",
+    "approach": "MultiGenerator_Cumulative",
+    "dataset": "AIME_2024",
+    "accuracy": 0.13333333333333333,
+    "correct": 2,
+    "total": 15,
+    "elapsed_s": 2755.8,
+    "output_path": "results_multi_agent/AIME_2024/Qwen2.5-1.5B-Instruct+Qwen2.5-3B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-7B-Instruct_MultiGenerator_Cumulative_20260227-150313.jsonl"
+  }
+]

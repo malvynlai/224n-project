@@ -31,6 +31,8 @@ import traceback
 from datetime import datetime
 from typing import Dict, List
 
+import numpy as np
+
 from datasets import load_from_disk
 from tqdm import tqdm
 
@@ -199,7 +201,10 @@ def run_single(
     shuffle_seed: int = 10,
 ) -> Dict:
     dataset = load_from_disk(f"data/{task}")
-    dataset = dataset.shuffle(seed=shuffle_seed)
+    rng = np.random.RandomState(shuffle_seed)
+    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
+    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    dataset = dataset.select(indices)
 
     cheatsheet = "(empty)"
     cheatsheet_template = (
@@ -210,8 +215,6 @@ def run_single(
     generator_outputs_so_far: List[str] = []
     correct = 0
     total = 0
-
-    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
     t0 = time.time()
 
     gen_short = "+".join(m.split("/")[-1].split("-Instruct")[0] for m in GENERATOR_MODELS)
@@ -257,6 +260,11 @@ def run_single(
             correct += 1
         total += 1
         acc = correct / total if total else 0
+
+        per_gen = output_dict.get("all_generator_answers")
+        if per_gen:
+            log.info(f"  Q{idx+1} per-generator answers: {per_gen}")
+        log.info(f"  Q{idx+1} final_answer={final_answer!r}  target={target!r}  correct={is_correct}")
 
         pbar.set_postfix(acc=f"{acc:.1%}", correct=f"{correct}/{total}")
 
@@ -306,7 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max_tokens", type=int, default=2048)
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--max_num_rounds", type=int, default=1)
-    p.add_argument("--max_samples", type=int, default=-1,
+    p.add_argument("--max_samples", type=int, default=15,
                     help="Cap samples per dataset (-1 = run all)")
     p.add_argument("--no_code_execution", action="store_true")
     p.add_argument("--save_dir", default="results_multi_agent")
@@ -380,11 +388,12 @@ def main():
     # ── Run evaluations ─────────────────────────────────────────────
     all_summaries = []
     runs_to_do = total_runs - skip_count
+    summary_path = os.path.join(args.save_dir, "summary_latest.json")
 
     run_pbar = tqdm(total=runs_to_do, desc="Overall runs", unit="run", position=0)
 
-    for approach in approaches:
-        for task in datasets:
+    for task in datasets:
+        for approach in approaches:
             key = run_key(approach, task)
             if key in completed:
                 log.info(f"\n  SKIP (already done): {approach} | {task}")
@@ -411,9 +420,14 @@ def main():
 
             run_pbar.update(1)
 
+            # Save incremental summary after each (approach, dataset) run
+            with open(summary_path, "w") as f:
+                json.dump(all_summaries, f, indent=2)
+            log.info(f"  [checkpoint] summary saved to {summary_path}")
+
     run_pbar.close()
 
-    # ── Summary table ───────────────────────────────────────────────
+    # ── Final summary table ──────────────────────────────────────────
     log.info("\n" + "=" * 72)
     log.info("  RESULTS SUMMARY")
     log.info("=" * 72)
@@ -432,10 +446,10 @@ def main():
     log.info(f"Curator:    {CURATOR_MODEL.split('/')[-1]}")
 
     ts = datetime.now().strftime("%Y%m%d-%H%M")
-    summary_path = os.path.join(args.save_dir, f"summary_{ts}.json")
-    with open(summary_path, "w") as f:
+    final_summary_path = os.path.join(args.save_dir, f"summary_{ts}.json")
+    with open(final_summary_path, "w") as f:
         json.dump(all_summaries, f, indent=2)
-    log.info(f"Summary saved to {summary_path}")
+    log.info(f"Final summary saved to {final_summary_path}")
 
 
 if __name__ == "__main__":

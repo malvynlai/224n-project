@@ -19,17 +19,17 @@ class LocalModelManager:
     """
     Manages loading, caching, and unloading of local HuggingFace models.
 
-    Only one model is kept in GPU memory at a time to conserve VRAM.
-    When a different model is requested, the current one is unloaded first.
-    If the same model is requested consecutively, it stays loaded (no-op).
+    Multiple models can be kept in GPU memory simultaneously to avoid
+    expensive reload cycles when alternating between models (e.g. in
+    multi-generator setups). Models are only evicted on explicit unload
+    or when a CUDA OOM occurs during loading.
     """
 
     def __init__(self, quantization="4bit", device_map="auto"):
         self.quantization = quantization
         self.device_map = device_map
-        self._model = None
-        self._tokenizer = None
-        self._current_model_name = None
+        self._models = {}       # model_name -> model
+        self._tokenizers = {}   # model_name -> tokenizer
 
         if quantization == "4bit":
             self.bnb_config = BitsAndBytesConfig(
@@ -44,18 +44,17 @@ class LocalModelManager:
             self.bnb_config = None
 
     def load_model(self, model_name: str):
-        """Load a model into GPU memory, unloading any previous model first."""
-        if self._current_model_name == model_name:
+        """Load a model into GPU memory (cached across calls)."""
+        if model_name in self._models:
             return
 
-        self.unload()
         print(f"[LocalModelManager] Loading {model_name} ({self.quantization})...")
 
-        self._tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
-        if self._tokenizer.pad_token is None:
-            self._tokenizer.pad_token = self._tokenizer.eos_token
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
 
         load_kwargs = {
             "device_map": self.device_map,
@@ -65,24 +64,38 @@ class LocalModelManager:
         if self.bnb_config is not None:
             load_kwargs["quantization_config"] = self.bnb_config
 
-        self._model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
-        self._model.eval()
-        self._current_model_name = model_name
+        try:
+            model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
+        except torch.cuda.OutOfMemoryError:
+            print(f"[LocalModelManager] OOM — evicting all cached models and retrying {model_name}")
+            self.unload_all()
+            model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
+
+        model.eval()
+        self._models[model_name] = model
+        self._tokenizers[model_name] = tokenizer
         print(f"[LocalModelManager] Loaded {model_name}")
 
-    def unload(self):
-        """Free GPU memory by deleting the current model."""
-        if self._model is not None:
-            model_name = self._current_model_name
-            del self._model
-            del self._tokenizer
-            self._model = None
-            self._tokenizer = None
-            self._current_model_name = None
+    def unload(self, model_name: str):
+        """Free GPU memory for a specific model."""
+        if model_name in self._models:
+            del self._models[model_name]
+            del self._tokenizers[model_name]
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             print(f"[LocalModelManager] Unloaded {model_name}")
+
+    def unload_all(self):
+        """Free GPU memory by deleting all cached models."""
+        names = list(self._models.keys())
+        self._models.clear()
+        self._tokenizers.clear()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        for name in names:
+            print(f"[LocalModelManager] Unloaded {name}")
 
     def generate(self, messages, model_name, temperature=0.1, max_tokens=2048):
         """
@@ -96,15 +109,18 @@ class LocalModelManager:
         """
         self.load_model(model_name)
 
-        text = self._tokenizer.apply_chat_template(
+        tokenizer = self._tokenizers[model_name]
+        model = self._models[model_name]
+
+        text = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-        inputs = self._tokenizer(text, return_tensors="pt", truncation=True)
-        inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
+        inputs = tokenizer(text, return_tensors="pt", truncation=True)
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
         gen_kwargs = {
             "max_new_tokens": max_tokens,
-            "pad_token_id": self._tokenizer.pad_token_id,
+            "pad_token_id": tokenizer.pad_token_id,
         }
         if temperature > 0:
             gen_kwargs["do_sample"] = True
@@ -114,10 +130,10 @@ class LocalModelManager:
             gen_kwargs["do_sample"] = False
 
         with torch.no_grad():
-            output_ids = self._model.generate(**inputs, **gen_kwargs)
+            output_ids = model.generate(**inputs, **gen_kwargs)
 
         new_tokens = output_ids[0][inputs["input_ids"].shape[1]:]
-        response = self._tokenizer.decode(new_tokens, skip_special_tokens=True)
+        response = tokenizer.decode(new_tokens, skip_special_tokens=True)
         return response
 
 
