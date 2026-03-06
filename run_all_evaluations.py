@@ -15,8 +15,8 @@ Usage examples:
   # Force sequential mode (single GPU):
   python run_all_evaluations.py --no_parallel
 
-  # 4-bit quantization for large models on 16GB GPUs:
-  python run_all_evaluations.py --quantize 4bit
+  # 4-bit quantization (default):
+  python run_all_evaluations.py --quantization 4bit
 
   # Worker mode (used internally by parallel orchestrator):
   python run_all_evaluations.py --_worker --_gpu 0 --models Qwen/Qwen2.5-3B-Instruct
@@ -35,10 +35,9 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
-import pandas as pd
 from datasets import load_from_disk
 from tqdm import tqdm
 
@@ -306,7 +305,10 @@ def run_single(
     shuffle_seed: int = 10,
 ) -> Dict:
     dataset = load_from_disk(f"data/{task}")
-    dataset = dataset.shuffle(seed=shuffle_seed)
+    rng = np.random.RandomState(shuffle_seed)
+    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
+    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    dataset = dataset.select(indices)
 
     cheatsheet = "(empty)"
     cheatsheet_template = (
@@ -317,8 +319,6 @@ def run_single(
     generator_outputs_so_far: List[str] = []
     correct = 0
     total = 0
-
-    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
     short_model_name = model_name.split("/")[-1]
     t0 = time.time()
 
@@ -424,26 +424,11 @@ def run_sequential(args, models, approaches, datasets, completed):
         if run_key(m, a, d) in completed
     )
     runs_to_do = total_runs - skip_count
-    run_idx = 0
     run_pbar = tqdm(total=runs_to_do, desc="Overall runs", unit="run", position=0)
 
-    for model_name in models:
-        backend_kwargs = {}
-        if args.backend_type in ("huggingface", "hf"):
-            device = args.device
-            if hasattr(args, '_gpu') and args._gpu is not None:
-                device = "cuda:0"  # CUDA_VISIBLE_DEVICES already selects the physical GPU
-            backend_kwargs.update(
-                device=device,
-                dtype=args.dtype,
-                max_new_tokens=args.max_tokens,
-                quantize=args.quantize,
-            )
-        elif args.backend_type == "vllm":
-            backend_kwargs.update(base_url=args.vllm_base_url)
-        elif args.backend_type == "ollama":
-            backend_kwargs.update(base_url=args.ollama_base_url)
+    summary_path = os.path.join(args.save_dir, "summary_latest.json")
 
+    for model_name in models:
         model_runs_needed = any(
             run_key(model_name, a, d) not in completed
             for a in approaches for d in datasets
@@ -453,14 +438,14 @@ def run_sequential(args, models, approaches, datasets, completed):
             continue
 
         log.info(f"\n{'─'*72}")
-        log.info(f"Loading model: {model_name}  (backend={args.backend_type})")
+        log.info(f"Loading model: {model_name}  (quantization={args.quantization})")
         log.info(f"{'─'*72}")
 
         try:
             model = LanguageModel(
                 model_name=model_name,
-                backend_type=args.backend_type,
-                **backend_kwargs,
+                use_local_models=True,
+                quantization=args.quantization,
             )
         except Exception as exc:
             log.error(f"  [SKIP] Failed to load {model_name}: {exc}")
@@ -469,7 +454,6 @@ def run_sequential(args, models, approaches, datasets, completed):
 
         for approach in approaches:
             for task in datasets:
-                run_idx += 1
                 key = run_key(model_name, approach, task)
 
                 if key in completed:
@@ -503,6 +487,9 @@ def run_sequential(args, models, approaches, datasets, completed):
                     })
                 run_pbar.update(1)
 
+                with open(summary_path, "w") as f:
+                    json.dump(all_summaries, f, indent=2, default=str)
+
         del model
         free_gpu_memory()
         log.info(f"  [Unloaded {model_name.split('/')[-1]}, freed GPU memory]")
@@ -531,7 +518,7 @@ def run_parallel(args, models, approaches, datasets, completed):
     log.info(f"\n  Parallel mode: {gpu_count} GPUs detected ({gpu_mem_gb:.1f} GB each)")
 
     assignment, multi_gpu_models = plan_gpu_assignment(
-        models, args.quantize, gpu_count, gpu_mem_gb
+        models, args.quantization, gpu_count, gpu_mem_gb
     )
 
     for gpu_id, gpu_models in assignment.items():
@@ -553,10 +540,7 @@ def run_parallel(args, models, approaches, datasets, completed):
             "--models", *gpu_models,
             "--approaches", *approaches,
             "--datasets", *datasets,
-            "--backend_type", args.backend_type,
-            "--device", "auto",
-            "--dtype", args.dtype,
-            "--quantize", args.quantize,
+            "--quantization", args.quantization,
             "--max_tokens", str(args.max_tokens),
             "--temperature", str(args.temperature),
             "--max_num_rounds", str(args.max_num_rounds),
@@ -579,10 +563,7 @@ def run_parallel(args, models, approaches, datasets, completed):
         )
         processes.append((gpu_id, gpu_models, proc))
 
-    # Stream output from all workers
-    import select
     active = {gpu_id: proc for gpu_id, _, proc in processes}
-    fds = {proc.stdout.fileno(): gpu_id for gpu_id, _, proc in processes}
 
     while active:
         finished = []
@@ -667,16 +648,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--datasets", nargs="+", default=None,
         help=f"Dataset names. Default: {ALL_DATASETS}",
     )
-    p.add_argument("--backend_type", default="huggingface",
-                    choices=["huggingface", "hf", "vllm", "ollama", "litellm"])
-    p.add_argument("--device", default="auto")
-    p.add_argument("--dtype", default="bfloat16")
-    p.add_argument("--quantize", default="none", choices=["none", "4bit", "8bit"],
-                    help="Quantization: none (default), 4bit, or 8bit")
+    p.add_argument("--quantization", default="4bit",
+                    choices=["none", "4bit", "8bit"])
     p.add_argument("--max_tokens", type=int, default=2048)
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--max_num_rounds", type=int, default=1)
-    p.add_argument("--max_samples", type=int, default=-1,
+    p.add_argument("--max_samples", type=int, default=15,
                     help="Cap samples per dataset (-1 = run all)")
     p.add_argument("--no_code_execution", action="store_true")
     p.add_argument("--save_dir", default="results_oss")
@@ -684,9 +661,6 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Skip already-completed (model, approach, dataset) triples")
     p.add_argument("--no_parallel", action="store_true",
                     help="Disable multi-GPU parallelism (run sequentially)")
-    p.add_argument("--vllm_base_url", default="http://localhost:8000/v1")
-    p.add_argument("--ollama_base_url", default="http://localhost:11434")
-
     # Internal flags for worker subprocesses
     p.add_argument("--_worker", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--_gpu", type=int, default=None, help=argparse.SUPPRESS)
@@ -734,20 +708,17 @@ def main():
         not args.no_parallel
         and not args._worker
         and gpu_count > 1
-        and args.backend_type in ("huggingface", "hf")
     )
 
     log.info("=" * 72)
     log.info("  OSS Model Evaluation Run")
     log.info("=" * 72)
-    log.info(f"  GPU:        {gpu_info}")
-    log.info(f"  Backend:    {args.backend_type}")
-    log.info(f"  Device:     {args.device}   dtype: {args.dtype}")
-    log.info(f"  Quantize:   {args.quantize}")
-    log.info(f"  Parallel:   {use_parallel} ({gpu_count} GPUs)")
+    log.info(f"  GPU:          {gpu_info}")
+    log.info(f"  Quantization: {args.quantization}")
+    log.info(f"  Parallel:     {use_parallel} ({gpu_count} GPUs)")
     log.info(f"  Models ({len(models)}):")
     for m in models:
-        vram = estimate_vram_gb(m, args.quantize)
+        vram = estimate_vram_gb(m, args.quantization)
         log.info(f"    - {m}  (~{vram:.1f} GB)")
     log.info(f"  Approaches ({len(approaches)}): {approaches}")
     log.info(f"  Datasets ({len(datasets)}): {datasets}")
