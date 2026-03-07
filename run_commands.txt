@@ -1,0 +1,202 @@
+################################################################################
+#  Run Commands Reference
+#  Models:  Qwen2.5-7B, Qwen2.5-14B, Mistral-7B
+#  Curator: Qwen2.5-14B (for multi-agent only)
+################################################################################
+
+# NOTE: All commands assume you are inside an srun GPU session or SLURM job.
+#       Prefix with srun if running from login node:
+#
+#   srun --partition=interactive --qos=interactive --gres=gpu:4 --pty bash
+#
+# Then run the commands below from ~/224n-project.
+
+
+# =============================================================================
+#  run_all_evaluations.py  (single-model: each model evaluated independently)
+# =============================================================================
+
+# --- Quick test (15 samples) on GSM8K + MMLU_Pro_Engineering, vLLM backend ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples 15 \
+    --quantization 4bit
+
+# --- Full run on GSM8K + MMLU_Pro_Engineering, vLLM backend ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Full run, all datasets, vLLM backend ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Only the "default" approach (no cheatsheet), vLLM ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches default \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Only DynamicCheatsheet_Cumulative, vLLM ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches DynamicCheatsheet_Cumulative \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Specific single model, vLLM ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --models Qwen/Qwen2.5-14B-Instruct \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- HuggingFace backend (fallback if vLLM has issues) ---
+python run_all_evaluations.py \
+    --backend hf \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Disable multi-GPU parallelism (sequential, 1 GPU) ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --no_parallel \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit
+
+# --- 8-bit quantization instead of 4-bit ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 8bit \
+    --resume
+
+
+# =============================================================================
+#  run_multi_agent_eval.py  (3 generators + Qwen-14B curator)
+#  Generators: Qwen2.5-7B, Qwen2.5-14B, Mistral-7B
+#  Curator:    Qwen2.5-14B
+# =============================================================================
+
+# --- Quick test (15 samples) on GSM8K + MMLU_Pro_Engineering, vLLM ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --approaches MultiGenerator \
+    --max_samples 15 \
+    --quantization 4bit
+
+# --- Full run, MultiGenerator on GSM8K + MMLU_Pro_Engineering, vLLM ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --approaches MultiGenerator \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Full run, MultiGenerator_Cumulative on GSM8K + MMLU_Pro_Engineering ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --approaches MultiGenerator_Cumulative \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Full run, both approaches on GSM8K + MMLU_Pro_Engineering ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Full run, all datasets, both approaches ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Quick test, single dataset ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K \
+    --approaches MultiGenerator \
+    --max_samples 15 \
+    --quantization 4bit
+
+# --- HuggingFace backend (fallback) ---
+python run_multi_agent_eval.py \
+    --backend hf \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --approaches MultiGenerator \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+# --- Higher temperature for diversity in generator outputs ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --approaches MultiGenerator \
+    --max_samples -1 \
+    --quantization 4bit \
+    --temperature 0.3 \
+    --resume
+
+
+# =============================================================================
+#  Available CLI flags reference
+# =============================================================================
+#
+#  run_all_evaluations.py:
+#    --models          Model HF IDs (default: all 3)
+#    --approaches      default | DynamicCheatsheet_Cumulative
+#    --datasets        Dataset names (default: all 8)
+#    --backend         hf | vllm
+#    --quantization    none | 4bit | 8bit
+#    --max_tokens      Max generation tokens (default: 2048)
+#    --temperature     Sampling temperature (default: 0.0)
+#    --max_num_rounds  Cheatsheet rounds (default: 1)
+#    --max_samples     Samples per dataset (-1 = all, default: 15)
+#    --no_code_execution   Disable code execution
+#    --save_dir        Output directory (default: results_oss)
+#    --resume          Skip completed runs
+#    --no_parallel     Force single-GPU sequential mode
+#
+#  run_multi_agent_eval.py:
+#    --approaches      MultiGenerator | MultiGenerator_Cumulative
+#    --datasets        Dataset names (default: all)
+#    --backend         hf | vllm
+#    --quantization    none | 4bit | 8bit
+#    --max_tokens      Max generation tokens (default: 2048)
+#    --temperature     Sampling temperature (default: 0.0)
+#    --max_num_rounds  Curator rounds (default: 1)
+#    --max_samples     Samples per dataset (-1 = all, default: 15)
+#    --no_code_execution   Disable code execution
+#    --save_dir        Output directory (default: results_multi_agent)
+#    --resume          Skip completed runs
+#
+#  Available datasets:
+#    AIME_2024, AIME_2025, AIME_2020_2024, GPQA_Diamond,
+#    MMLU_Pro_Physics, MMLU_Pro_Engineering, MathEquationBalancer, GSM8K

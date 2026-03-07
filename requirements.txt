@@ -1,0 +1,28 @@
+# ── Core dependencies ──────────────────────────────────────────────
+numpy
+torch
+transformers
+datasets
+accelerate
+bitsandbytes
+huggingface-hub
+tqdm
+tiktoken
+scikit-learn
+litellm
+
+# ── Benchmark runner (run_benchmark.py) ───────────────────────────
+pandas
+typed-argument-parser
+python-dotenv
+
+# ── Sonnet evaluation ─────────────────────────────────────────────
+joblib
+pyphen
+syllables
+pronouncing
+
+# ── Optional: vLLM backend (--backend vllm) ──────────────────────
+# Uncomment to enable the vLLM inference backend for faster evaluation.
+# Requires CUDA ≥ 12.1. See https://docs.vllm.ai/en/latest/getting_started/installation.html
+vllm

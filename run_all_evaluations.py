@@ -47,20 +47,16 @@ from dynamic_cheatsheet.utils.evaluation import (
     eval_for_exact_matching_with_no_punctuation,
     eval_for_multiple_choice,
 )
+from dynamic_cheatsheet.utils.extractor import extract_answer
 
 # ─────────────────────────────────────────────────────────────────────
 # MODEL CATALOGUE
 # ─────────────────────────────────────────────────────────────────────
 
 ALL_MODELS = [
-    # "Qwen/Qwen2.5-0.5B-Instruct",  # skipped per user request
-    "Qwen/Qwen2.5-3B-Instruct",
     "Qwen/Qwen2.5-7B-Instruct",
-    "mistralai/Mistral-7B-Instruct-v0.2",
     "Qwen/Qwen2.5-14B-Instruct",
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "mistralai/Mistral-Nemo-Instruct-2407",
-    # "microsoft/Phi-3-mini-4k-instruct",  # incompatible rope_scaling with transformers 5.x
+    "mistralai/Mistral-7B-Instruct-v0.2",
 ]
 
 # bf16 VRAM in GB (approximate)
@@ -82,6 +78,7 @@ ALL_DATASETS = [
     "MMLU_Pro_Physics",
     "MMLU_Pro_Engineering",
     "MathEquationBalancer",
+    "GSM8K",
 ]
 
 EVAL_TYPE: Dict[str, str] = {
@@ -92,6 +89,7 @@ EVAL_TYPE: Dict[str, str] = {
     "MMLU_Pro_Physics":     "mcq",
     "MMLU_Pro_Engineering": "mcq",
     "MathEquationBalancer": "equation",
+    "GSM8K":                "exact",
 }
 
 TASK_INPUT_SUFFIX: Dict[str, str] = {
@@ -109,6 +107,10 @@ TASK_INPUT_SUFFIX: Dict[str, str] = {
         " (Please provide your answer in the form of an integer, e.g., 1234, "
         "with no Markdown formatting or additional text; make sure to pay "
         "attention to the desired format of the final answer though.)"
+    ),
+    "GSM8K": (
+        " (Please provide your final numerical answer as a single "
+        "number with no units, commas, or additional text.)"
     ),
 }
 
@@ -413,6 +415,108 @@ def run_single(
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Batched evaluation (vLLM) — for approaches without sequential deps
+# ─────────────────────────────────────────────────────────────────────
+
+def run_single_batched(
+    model: LanguageModel,
+    model_name: str,
+    task: str,
+    *,
+    max_samples: int = -1,
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
+    save_dir: str = "results_oss",
+    shuffle_seed: int = 10,
+) -> Dict:
+    """
+    Batched evaluation for the 'default' approach (no cheatsheet dependency).
+
+    All questions are formatted up-front and processed in a single vLLM
+    batch_generate() call, giving massive throughput gains via continuous
+    batching and prefix caching.
+    """
+    dataset = load_from_disk(f"data/{task}")
+    rng = np.random.RandomState(shuffle_seed)
+    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
+    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    dataset = dataset.select(indices)
+
+    short_model_name = model_name.split("/")[-1]
+    t0 = time.time()
+
+    # Phase 1: format all prompts
+    histories = []
+    raw_inputs = []
+    input_txts = []
+    targets = []
+    for idx in range(n):
+        example = dataset[idx]
+        raw_input = example["input"]
+        target = example["target"]
+        input_txt = format_input(task, raw_input, idx)
+        prompt = GENERATOR_PROMPT.replace(
+            "[[QUESTION]]", input_txt
+        ).replace("[[CHEATSHEET]]", "(empty)")
+        histories.append([{"role": "user", "content": prompt}])
+        raw_inputs.append(raw_input)
+        input_txts.append(input_txt)
+        targets.append(target)
+
+    # Phase 2: batch generate
+    log.info(f"  Batch-generating {n} prompts for {short_model_name}|default|{task}...")
+    all_outputs = model.batch_generate(
+        histories, temperature=temperature, max_tokens=max_tokens,
+    )
+    batch_time = time.time() - t0
+    log.info(f"  Batch generation done in {batch_time:.1f}s ({batch_time/n:.2f}s/prompt)")
+
+    # Phase 3: extract answers and evaluate
+    outputs: List[dict] = []
+    correct = 0
+    for idx in range(n):
+        final_answer = extract_answer(all_outputs[idx])
+        is_correct = evaluate_one(task, raw_inputs[idx], final_answer, targets[idx])
+        if is_correct:
+            correct += 1
+        outputs.append({
+            "idx": idx,
+            "input": input_txts[idx],
+            "raw_input": raw_inputs[idx],
+            "target": targets[idx],
+            "final_answer": final_answer,
+            "correct": is_correct,
+            "generator_output": all_outputs[idx],
+            "final_output": all_outputs[idx],
+        })
+
+    elapsed = time.time() - t0
+    accuracy = correct / n if n > 0 else 0.0
+
+    short_model = model_name.split("/")[-1]
+    ts = datetime.now().strftime("%Y%m%d-%H%M")
+    out_dir = os.path.join(save_dir, task)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"{short_model}_default_{ts}.jsonl")
+    with open(out_path, "w") as f:
+        for row in outputs:
+            f.write(json.dumps(row, default=str) + "\n")
+
+    summary = {
+        "model": model_name,
+        "approach": "default",
+        "task": task,
+        "accuracy": accuracy,
+        "correct": correct,
+        "total": n,
+        "elapsed_s": round(elapsed, 1),
+        "output_file": out_path,
+    }
+    log.info(f"  >> {task} done: {correct}/{n} = {accuracy:.1%} in {elapsed:.0f}s -> {out_path}")
+    return summary
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Sequential runner (1 model at a time, original behavior)
 # ─────────────────────────────────────────────────────────────────────
 
@@ -441,16 +545,20 @@ def run_sequential(args, models, approaches, datasets, completed):
         log.info(f"Loading model: {model_name}  (quantization={args.quantization})")
         log.info(f"{'─'*72}")
 
+        backend = getattr(args, 'backend', 'hf')
         try:
             model = LanguageModel(
                 model_name=model_name,
                 use_local_models=True,
                 quantization=args.quantization,
+                backend=backend,
             )
         except Exception as exc:
             log.error(f"  [SKIP] Failed to load {model_name}: {exc}")
             log.error(traceback.format_exc())
             continue
+
+        use_batch = (backend == "vllm")
 
         for approach in approaches:
             for task in datasets:
@@ -464,18 +572,29 @@ def run_sequential(args, models, approaches, datasets, completed):
                 log.info(f"\n  >>> {model_name.split('/')[-1]} | {approach} | {task}")
 
                 try:
-                    summary = run_single(
-                        model=model,
-                        model_name=model_name,
-                        approach=approach,
-                        task=task,
-                        max_samples=args.max_samples,
-                        max_tokens=args.max_tokens,
-                        temperature=args.temperature,
-                        max_num_rounds=args.max_num_rounds,
-                        execute_code=not args.no_code_execution,
-                        save_dir=args.save_dir,
-                    )
+                    if use_batch and approach == "default":
+                        summary = run_single_batched(
+                            model=model,
+                            model_name=model_name,
+                            task=task,
+                            max_samples=args.max_samples,
+                            max_tokens=args.max_tokens,
+                            temperature=args.temperature,
+                            save_dir=args.save_dir,
+                        )
+                    else:
+                        summary = run_single(
+                            model=model,
+                            model_name=model_name,
+                            approach=approach,
+                            task=task,
+                            max_samples=args.max_samples,
+                            max_tokens=args.max_tokens,
+                            temperature=args.temperature,
+                            max_num_rounds=args.max_num_rounds,
+                            execute_code=not args.no_code_execution,
+                            save_dir=args.save_dir,
+                        )
                     all_summaries.append(summary)
                 except Exception as exc:
                     log.error(f"  [FAIL] {key}: {exc}")
@@ -541,6 +660,7 @@ def run_parallel(args, models, approaches, datasets, completed):
             "--approaches", *approaches,
             "--datasets", *datasets,
             "--quantization", args.quantization,
+            "--backend", getattr(args, 'backend', 'hf'),
             "--max_tokens", str(args.max_tokens),
             "--temperature", str(args.temperature),
             "--max_num_rounds", str(args.max_num_rounds),
@@ -650,6 +770,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--quantization", default="4bit",
                     choices=["none", "4bit", "8bit"])
+    p.add_argument("--backend", default="hf", choices=["hf", "vllm"],
+                    help="Inference backend: 'hf' (HuggingFace transformers) or "
+                         "'vllm' (faster, supports batch generation)")
     p.add_argument("--max_tokens", type=int, default=2048)
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--max_num_rounds", type=int, default=1)
@@ -714,6 +837,7 @@ def main():
     log.info("  OSS Model Evaluation Run")
     log.info("=" * 72)
     log.info(f"  GPU:          {gpu_info}")
+    log.info(f"  Backend:      {args.backend}")
     log.info(f"  Quantization: {args.quantization}")
     log.info(f"  Parallel:     {use_parallel} ({gpu_count} GPUs)")
     log.info(f"  Models ({len(models)}):")

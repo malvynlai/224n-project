@@ -119,6 +119,9 @@ def format_input(task: str, raw_input: str, idx: int) -> str:
                 "e.g., 1234, with no Markdown formatting or additional text; "
                 "make sure to pay attention to the desired format of the "
                 "final answer though.)")
+    elif task == "GSM8K":
+        txt += (" (Please provide your final numerical answer as a single "
+                "number with no units, commas, or additional text.)")
     elif task == "MathEquationBalancer":
         txt = (
             "Below is an equation with missing operators. Your task is to "
@@ -134,7 +137,7 @@ def format_input(task: str, raw_input: str, idx: int) -> str:
 
 
 def evaluate_answer(task: str, input_txt: str, answer: str, target: str) -> bool:
-    if task in ("AIME_2025", "AIME_2024", "AIME_2020_2024"):
+    if task in ("AIME_2025", "AIME_2024", "AIME_2020_2024", "GSM8K"):
         return eval_for_exact_matching_with_no_punctuation(
             answer.lower(), target.lower()
         )
@@ -306,6 +309,138 @@ def run_single(
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Batched evaluation for MultiGenerator (vLLM) — no sequential deps
+# ─────────────────────────────────────────────────────────────────────
+
+def run_multi_generator_batched(
+    model: LanguageModel,
+    task: str,
+    *,
+    max_samples: int = -1,
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
+    save_dir: str = "results_multi_agent",
+    shuffle_seed: int = 10,
+) -> Dict:
+    """
+    Batched MultiGenerator evaluation: process all questions per-generator
+    in a single vLLM batch call, then majority-vote across generators.
+
+    Instead of switching models for every question, we load each generator
+    once and batch all questions through it. This means only len(GENERATOR_MODELS)
+    model loads instead of len(GENERATOR_MODELS) * n.
+    """
+    from collections import Counter as _Counter
+
+    dataset = load_from_disk(f"data/{task}")
+    rng = np.random.RandomState(shuffle_seed)
+    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
+    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    dataset = dataset.select(indices)
+
+    t0 = time.time()
+
+    # Phase 1: format all prompts (shared across generators — no cheatsheet)
+    histories = []
+    raw_inputs = []
+    input_txts = []
+    targets = []
+    for idx in range(n):
+        example = dataset[idx]
+        raw_input = example["input"]
+        target = example["target"]
+        input_txt = format_input(task, raw_input, idx)
+        prompt = GENERATOR_PROMPT.replace(
+            "[[QUESTION]]", input_txt
+        ).replace("[[CHEATSHEET]]", "(empty)")
+        histories.append([{"role": "user", "content": prompt}])
+        raw_inputs.append(raw_input)
+        input_txts.append(input_txt)
+        targets.append(target)
+
+    # Phase 2: batch generate per-generator (one model load + one batch per generator)
+    per_gen_outputs: Dict[str, List[str]] = {}
+    for gen_name in GENERATOR_MODELS:
+        log.info(f"  Batch-generating {n} prompts for {gen_name.split('/')[-1]}...")
+        gen_t0 = time.time()
+        outputs = model.batch_generate_with_model(
+            histories, gen_name, temperature=temperature, max_tokens=max_tokens,
+        )
+        gen_elapsed = time.time() - gen_t0
+        log.info(f"  {gen_name.split('/')[-1]} done in {gen_elapsed:.1f}s")
+        per_gen_outputs[gen_name] = outputs
+
+    # Phase 3: majority vote + evaluation
+    outputs_list: List[dict] = []
+    correct = 0
+    for idx in range(n):
+        gen_answers = []
+        gen_steps = []
+        combined_outputs = ""
+        for gi, gen_name in enumerate(GENERATOR_MODELS):
+            gen_output = per_gen_outputs[gen_name][idx]
+            gen_answer = extract_answer(gen_output)
+            gen_answers.append(gen_answer)
+            gen_steps.append({
+                "generator_index": gi,
+                "generator_model": gen_name,
+                "generator_output": gen_output,
+                "generator_answer": gen_answer,
+            })
+            combined_outputs += (
+                f"### Generator {gi+1} ({gen_name}) Output:\n{gen_output}\n---\n\n"
+            )
+
+        final_answer = _Counter(gen_answers).most_common(1)[0][0]
+        is_correct = evaluate_answer(task, input_txts[idx], final_answer, targets[idx])
+        if is_correct:
+            correct += 1
+
+        log.info(f"  Q{idx+1} per-gen={gen_answers}  final={final_answer!r}  "
+                 f"target={targets[idx]!r}  correct={is_correct}")
+
+        outputs_list.append({
+            "input": input_txts[idx],
+            "target": targets[idx],
+            "raw_input": raw_inputs[idx],
+            "steps": gen_steps,
+            "all_generator_answers": gen_answers,
+            "final_answer": final_answer,
+            "final_cheatsheet": None,
+            "final_output": combined_outputs,
+            "is_correct": is_correct,
+        })
+
+    elapsed = time.time() - t0
+    accuracy = correct / n if n else 0
+
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    gen_tag = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
+    cur_tag = CURATOR_MODEL.split("/")[-1]
+    fname = f"{gen_tag}__{cur_tag}_MultiGenerator_{ts}.jsonl"
+    out_dir = os.path.join(save_dir, task)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, fname)
+    with open(out_path, "w") as f:
+        for row in outputs_list:
+            f.write(json.dumps(row) + "\n")
+
+    log.info(f"  => {accuracy:.1%} ({correct}/{n}) in {elapsed:.0f}s  -> {out_path}")
+
+    return {
+        "generators": [m.split("/")[-1] for m in GENERATOR_MODELS],
+        "curator": CURATOR_MODEL.split("/")[-1],
+        "approach": "MultiGenerator",
+        "dataset": task,
+        "accuracy": accuracy,
+        "correct": correct,
+        "total": n,
+        "elapsed_s": round(elapsed, 1),
+        "output_path": out_path,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────
 
@@ -322,6 +457,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Skip already-completed (approach, dataset) triples")
     p.add_argument("--quantization", default="4bit",
                     choices=["none", "4bit", "8bit"])
+    p.add_argument("--backend", default="hf", choices=["hf", "vllm"],
+                    help="Inference backend: 'hf' (HuggingFace transformers) or "
+                         "'vllm' (faster, supports batch generation)")
     p.add_argument("--approaches", nargs="+", default=None,
                     help=f"Approaches to run. Default: {ALL_APPROACHES}")
     p.add_argument("--datasets", nargs="+", default=None,
@@ -361,6 +499,7 @@ def main():
     log.info("  Multi-Agent Evaluation")
     log.info("=" * 72)
     log.info(f"  GPU:          {gpu_info}")
+    log.info(f"  Backend:      {args.backend}")
     log.info(f"  Quantization: {args.quantization}")
     log.info(f"  Generators ({len(GENERATOR_MODELS)}):")
     for m in GENERATOR_MODELS:
@@ -375,15 +514,16 @@ def main():
     log.info("=" * 72)
 
     # ── Load model ──────────────────────────────────────────────────
-    log.info("\nInitializing LanguageModel with multi-generator setup...")
+    log.info(f"\nInitializing LanguageModel with multi-generator setup (backend={args.backend})...")
     model = LanguageModel(
         model_name=CURATOR_MODEL,
         generator_model_names=GENERATOR_MODELS,
         curator_model_name=CURATOR_MODEL,
         use_local_models=True,
         quantization=args.quantization,
+        backend=args.backend,
     )
-    log.info("  LanguageModel ready (models loaded on-demand by LocalModelManager)")
+    log.info("  LanguageModel ready")
 
     # ── Run evaluations ─────────────────────────────────────────────
     all_summaries = []
@@ -401,18 +541,29 @@ def main():
 
             log.info(f"\n  >>> {approach} | {task}")
 
+            use_batch = (args.backend == "vllm" and approach == "MultiGenerator")
             try:
-                summary = run_single(
-                    model=model,
-                    approach=approach,
-                    task=task,
-                    max_samples=args.max_samples,
-                    max_tokens=args.max_tokens,
-                    temperature=args.temperature,
-                    max_num_rounds=args.max_num_rounds,
-                    execute_code=not args.no_code_execution,
-                    save_dir=args.save_dir,
-                )
+                if use_batch:
+                    summary = run_multi_generator_batched(
+                        model=model,
+                        task=task,
+                        max_samples=args.max_samples,
+                        max_tokens=args.max_tokens,
+                        temperature=args.temperature,
+                        save_dir=args.save_dir,
+                    )
+                else:
+                    summary = run_single(
+                        model=model,
+                        approach=approach,
+                        task=task,
+                        max_samples=args.max_samples,
+                        max_tokens=args.max_tokens,
+                        temperature=args.temperature,
+                        max_num_rounds=args.max_num_rounds,
+                        execute_code=not args.no_code_execution,
+                        save_dir=args.save_dir,
+                    )
                 all_summaries.append(summary)
             except Exception as exc:
                 log.error(f"  [FAIL] {key}: {exc}")

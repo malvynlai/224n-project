@@ -15,6 +15,7 @@ class LanguageModel:
         curator_model_name: str = None,
         use_local_models: bool = False,
         quantization: str = "4bit",
+        backend: str = "hf",
     ) -> None:
         """
         LanguageModel class to interact with different language models.
@@ -25,15 +26,24 @@ class LanguageModel:
             curator_model_name : str : Optional separate model name for the curator in multi-generator approaches.
             use_local_models : bool : If True, load models locally via HuggingFace transformers instead of API.
             quantization : str : Quantization mode for local models ("4bit", "8bit", or "none").
+            backend : str : Inference backend for local models — "hf" (HuggingFace transformers) or "vllm".
+                vLLM provides faster inference via PagedAttention/FlashAttention and supports
+                batch_generate() for processing many prompts in one call.
         """
 
         self.model_name = model_name
         self.use_local_models = use_local_models
+        self.backend = backend
 
         if use_local_models:
-            from .local_model_manager import LocalModelManager, LocalCompletionWrapper
-            self.local_manager = LocalModelManager(quantization=quantization)
-            self.client = LocalCompletionWrapper(self.local_manager, self.model_name)
+            if backend == "vllm":
+                from .vllm_model_manager import VLLMModelManager, VLLMCompletionWrapper
+                self.local_manager = VLLMModelManager(quantization=quantization)
+                self.client = VLLMCompletionWrapper(self.local_manager, self.model_name)
+            else:
+                from .local_model_manager import LocalModelManager, LocalCompletionWrapper
+                self.local_manager = LocalModelManager(quantization=quantization)
+                self.client = LocalCompletionWrapper(self.local_manager, self.model_name)
         else:
             self.local_manager = None
             self.client = partial(completion, model=self.model_name)
@@ -43,10 +53,18 @@ class LanguageModel:
         if generator_model_names is not None:
             self.generator_model_names_list = generator_model_names
             if use_local_models:
-                self.generator_clients = [
-                    LocalCompletionWrapper(self.local_manager, name)
-                    for name in generator_model_names
-                ]
+                if backend == "vllm":
+                    from .vllm_model_manager import VLLMCompletionWrapper as _VW
+                    self.generator_clients = [
+                        _VW(self.local_manager, name)
+                        for name in generator_model_names
+                    ]
+                else:
+                    from .local_model_manager import LocalCompletionWrapper as _LW
+                    self.generator_clients = [
+                        _LW(self.local_manager, name)
+                        for name in generator_model_names
+                    ]
             else:
                 self.generator_clients = [
                     partial(completion, model=name) for name in generator_model_names
@@ -57,7 +75,12 @@ class LanguageModel:
         if curator_model_name is not None:
             self.curator_model_name = curator_model_name
             if use_local_models:
-                self.curator_client = LocalCompletionWrapper(self.local_manager, curator_model_name)
+                if backend == "vllm":
+                    from .vllm_model_manager import VLLMCompletionWrapper as _VW2
+                    self.curator_client = _VW2(self.local_manager, curator_model_name)
+                else:
+                    from .local_model_manager import LocalCompletionWrapper as _LW2
+                    self.curator_client = _LW2(self.local_manager, curator_model_name)
             else:
                 self.curator_client = partial(completion, model=curator_model_name)
 
@@ -70,6 +93,63 @@ class LanguageModel:
         """
         tokens = self.gpt4Tokenizer.encode(text)
         return len(tokens)
+
+    def batch_generate(self,
+        histories: List[List[dict]],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> List[str]:
+        """
+        Batch-generate responses for multiple message histories using the default model.
+
+        With the vLLM backend, all prompts are processed in a single optimized call.
+        With HF or API backends, falls back to sequential generation.
+        """
+        if self.local_manager and hasattr(self.local_manager, 'batch_generate'):
+            return self.local_manager.batch_generate(
+                histories, self.model_name,
+                temperature=temperature, max_tokens=max_tokens,
+            )
+        return [
+            self.generate(h, temperature=temperature, max_tokens=max_tokens,
+                          allow_code_execution=False)
+            for h in histories
+        ]
+
+    def batch_generate_with_model(self,
+        histories: List[List[dict]],
+        model_name: str,
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> List[str]:
+        """
+        Batch-generate responses using a specific model (for multi-generator setups).
+
+        With the vLLM backend, all prompts are processed in a single optimized call.
+        """
+        if self.local_manager and hasattr(self.local_manager, 'batch_generate'):
+            return self.local_manager.batch_generate(
+                histories, model_name,
+                temperature=temperature, max_tokens=max_tokens,
+            )
+        # Sequential fallback: find or create the appropriate client
+        if self.use_local_models:
+            if self.backend == "vllm":
+                from .vllm_model_manager import VLLMCompletionWrapper
+                client = VLLMCompletionWrapper(self.local_manager, model_name)
+            else:
+                from .local_model_manager import LocalCompletionWrapper
+                client = LocalCompletionWrapper(self.local_manager, model_name)
+        else:
+            client = partial(completion, model=model_name)
+        return [
+            self.generate_with_client(
+                client=client, model_name=model_name, history=h,
+                temperature=temperature, max_tokens=max_tokens,
+                allow_code_execution=False,
+            )
+            for h in histories
+        ]
 
     def generate_with_client(self,
         client,
