@@ -3,11 +3,20 @@
     "model": "Qwen/Qwen2.5-7B-Instruct",
     "approach": "DynamicCheatsheet_Cumulative",
     "task": "GSM8K",
-    "accuracy": 0.8666666666666667,
-    "correct": 13,
-    "total": 15,
-    "elapsed_s": 1838.5,
-    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260306-2337.jsonl",
-    "audit_dir": "results_oss/cheatsheet_audit/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260306-230712"
+    "accuracy": 0.78013646702047,
+    "correct": 1029,
+    "total": 1319,
+    "elapsed_s": 3051.0,
+    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260307-2319.jsonl"
+  },
+  {
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "approach": "DynamicCheatsheet_Cumulative",
+    "task": "MMLU_Pro_Engineering",
+    "accuracy": null,
+    "correct": 0,
+    "total": 0,
+    "elapsed_s": 0,
+    "error": "You passed 8193 input tokens and requested 0 output tokens. However, the model's context length is only 8192 tokens, resulting in a maximum input length of 8192 tokens. Please reduce the length of the input prompt. (parameter=input_tokens, value=8193)"
   }
 ]

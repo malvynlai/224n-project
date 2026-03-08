@@ -42,7 +42,7 @@ from dynamic_cheatsheet.utils.evaluation import (
     eval_for_multiple_choice,
     eval_equation_balancer,
 )
-from dynamic_cheatsheet.utils.extractor import extract_answer
+from dynamic_cheatsheet.utils.extractor import extract_answer, extract_cheatsheet
 
 log = logging.getLogger("multi_agent_eval")
 
@@ -134,6 +134,39 @@ def format_input(task: str, raw_input: str, idx: int) -> str:
             f"\n\nEquation: {txt}"
         )
     return txt
+
+
+MAX_CHEATSHEET_WORDS = 1200
+
+def cap_cheatsheet(cheatsheet: str) -> str:
+    """Enforce a hard word cap on the cheatsheet to prevent context overflow."""
+    if cheatsheet == "(empty)":
+        return cheatsheet
+    words = cheatsheet.split()
+    if len(words) <= MAX_CHEATSHEET_WORDS:
+        return cheatsheet
+    log.warning(f"  Cheatsheet exceeded {MAX_CHEATSHEET_WORDS} words ({len(words)}), truncating")
+    return " ".join(words[:MAX_CHEATSHEET_WORDS]) + "\n\n[...cheatsheet truncated to fit context window]"
+
+
+def save_results_jsonl(out_path: str, rows: list, accuracy: float,
+                       correct: int, total: int):
+    """Write results with a summary header line."""
+    fname = os.path.basename(out_path).replace(".jsonl", "")
+    dataset = os.path.basename(os.path.dirname(out_path))
+    header = {
+        "_summary": True,
+        "file": fname,
+        "dataset": dataset,
+        "accuracy": round(accuracy, 4),
+        "accuracy_pct": f"{accuracy:.1%}",
+        "correct": correct,
+        "total": total,
+    }
+    with open(out_path, "w") as f:
+        f.write(json.dumps(header) + "\n")
+        for row in rows:
+            f.write(json.dumps(row, default=str) + "\n")
 
 
 def evaluate_answer(task: str, input_txt: str, answer: str, target: str) -> bool:
@@ -268,7 +301,7 @@ def run_single(
             }
 
         final_answer = output_dict.get("final_answer", "")
-        cheatsheet = output_dict.get("final_cheatsheet", cheatsheet) or cheatsheet
+        cheatsheet = cap_cheatsheet(output_dict.get("final_cheatsheet", cheatsheet) or cheatsheet)
         generator_outputs_so_far.append(output_dict.get("final_output", ""))
 
         is_correct = evaluate_answer(task, input_txt, final_answer, target)
@@ -313,9 +346,7 @@ def run_single(
     out_dir = os.path.join(save_dir, task)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, fname)
-    with open(out_path, "w") as f:
-        for row in outputs:
-            f.write(json.dumps(row) + "\n")
+    save_results_jsonl(out_path, outputs, accuracy, correct, total)
 
     log.info(f"  => {accuracy:.1%} ({correct}/{total}) in {elapsed:.0f}s  -> {out_path}")
 
@@ -449,9 +480,7 @@ def run_multi_generator_batched(
     out_dir = os.path.join(save_dir, task)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, fname)
-    with open(out_path, "w") as f:
-        for row in outputs_list:
-            f.write(json.dumps(row) + "\n")
+    save_results_jsonl(out_path, outputs_list, accuracy, correct, n)
 
     log.info(f"  => {accuracy:.1%} ({correct}/{n}) in {elapsed:.0f}s  -> {out_path}")
 
@@ -459,6 +488,222 @@ def run_multi_generator_batched(
         "generators": [m.split("/")[-1] for m in GENERATOR_MODELS],
         "curator": CURATOR_MODEL.split("/")[-1],
         "approach": "MultiGenerator",
+        "dataset": task,
+        "accuracy": accuracy,
+        "correct": correct,
+        "total": n,
+        "elapsed_s": round(elapsed, 1),
+        "output_path": out_path,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Batched MultiGenerator_Cumulative (vLLM)
+# ─────────────────────────────────────────────────────────────────────
+
+def run_multi_generator_cumulative_batched(
+    model: LanguageModel,
+    task: str,
+    *,
+    max_samples: int = -1,
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
+    save_dir: str = "results_multi_agent",
+    shuffle_seed: int = 10,
+    batch_size: int = 32,
+    cheatsheet_verbose: bool = False,
+) -> Dict:
+    """
+    Batched MultiGenerator_Cumulative for vLLM.
+
+    Per mini-batch of `batch_size` questions:
+      1. For each generator: batch all questions with the current cheatsheet (1 vLLM call each)
+      2. Majority-vote across generators per question
+      3. Consolidate all Q&A pairs into a single curator prompt          (1 vLLM call)
+    Total LLM calls per batch: len(GENERATOR_MODELS) + 1
+    Total overall: (len(GENERATOR_MODELS) + 1) * ceil(N / batch_size)
+    """
+    from collections import Counter as _Counter
+
+    dataset = load_from_disk(f"data/{task}")
+    rng = np.random.RandomState(shuffle_seed)
+    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
+    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    dataset = dataset.select(indices)
+
+    auditor = None
+    if cheatsheet_verbose:
+        from dynamic_cheatsheet.utils.cheatsheet_auditor import CheatsheetAuditor
+        auditor = CheatsheetAuditor(
+            save_dir=save_dir, model_name=CURATOR_MODEL,
+            task=task, approach="MultiGenerator_Cumulative",
+            generator_model=GENERATOR_MODELS[0],
+            curator_model=CURATOR_MODEL,
+        )
+
+    gen_short = "+".join(m.split("/")[-1].split("-Instruct")[0] for m in GENERATOR_MODELS)
+    t0 = time.time()
+
+    cheatsheet = "(empty)"
+    outputs_list: List[dict] = []
+    correct = 0
+
+    num_batches = (n + batch_size - 1) // batch_size
+    pbar = tqdm(range(n), desc=f"{gen_short}|MGCu_batch|{task}", unit="q", leave=True)
+
+    for b in range(num_batches):
+        batch_start = b * batch_size
+        batch_end = min(batch_start + batch_size, n)
+        k = batch_end - batch_start
+
+        # Phase 1: format prompts for this batch (shared cheatsheet)
+        batch_raw_inputs = []
+        batch_input_txts = []
+        batch_targets = []
+        histories = []
+        for idx in range(batch_start, batch_end):
+            example = dataset[idx]
+            raw_input = example["input"]
+            target = example["target"]
+            input_txt = format_input(task, raw_input, idx)
+            prompt = GENERATOR_PROMPT.replace(
+                "[[QUESTION]]", input_txt
+            ).replace("[[CHEATSHEET]]", cheatsheet)
+            histories.append([{"role": "user", "content": prompt}])
+            batch_raw_inputs.append(raw_input)
+            batch_input_txts.append(input_txt)
+            batch_targets.append(target)
+
+        # Phase 2: batch-generate per generator (1 vLLM call per generator)
+        per_gen_outputs: Dict[str, List[str]] = {}
+        for gen_name in GENERATOR_MODELS:
+            short_gen = gen_name.split("/")[-1]
+            log.info(f"  Batch {b+1}/{num_batches}: {short_gen} generating {k} answers...")
+            gen_out = model.batch_generate_with_model(
+                histories, gen_name, temperature=temperature, max_tokens=max_tokens,
+            )
+            per_gen_outputs[gen_name] = gen_out
+
+        # Phase 3: majority vote + evaluate each question
+        for i in range(k):
+            gen_answers = []
+            gen_steps = []
+            combined_outputs = ""
+            for gi, gen_name in enumerate(GENERATOR_MODELS):
+                gen_output = per_gen_outputs[gen_name][i]
+                gen_answer = extract_answer(gen_output)
+                gen_answers.append(gen_answer)
+                gen_steps.append({
+                    "generator_index": gi,
+                    "generator_model": gen_name,
+                    "generator_output": gen_output,
+                    "generator_answer": gen_answer,
+                })
+                combined_outputs += (
+                    f"### Generator {gi+1} ({gen_name}) Output:\n{gen_output}\n---\n\n"
+                )
+
+            final_answer = _Counter(gen_answers).most_common(1)[0][0]
+            is_correct = evaluate_answer(
+                task, batch_input_txts[i], final_answer, batch_targets[i],
+            )
+            if is_correct:
+                correct += 1
+
+            outputs_list.append({
+                "input": batch_input_txts[i],
+                "target": batch_targets[i],
+                "raw_input": batch_raw_inputs[i],
+                "steps": gen_steps,
+                "all_generator_answers": gen_answers,
+                "final_answer": final_answer,
+                "final_cheatsheet": cheatsheet,
+                "final_output": combined_outputs,
+                "is_correct": is_correct,
+            })
+
+            if auditor:
+                auditor.record(
+                    question_idx=batch_start + i,
+                    question_text=batch_input_txts[i],
+                    cheatsheet=cheatsheet,
+                    generator_output=combined_outputs,
+                    final_answer=final_answer,
+                    target=batch_targets[i],
+                    is_correct=is_correct,
+                )
+
+            pbar.update(1)
+            pbar.set_postfix(
+                acc=f"{correct/(batch_start+i+1):.1%}",
+                correct=f"{correct}/{batch_start+i+1}",
+            )
+
+        # Phase 4: single curator call with all Q&A pairs from this batch
+        # Budget in approximate tokens (words * 1.4). Reserve 2048 tokens
+        # for model output and keep total input under 6000 tokens.
+        MAX_INPUT_TOKENS = 6000
+        curator_shell = CURATOR_PROMPT.replace(
+            "[[PREVIOUS_CHEATSHEET]]", cheatsheet
+        ).replace(
+            "[[QUESTION]]", f"(Batch of {k} questions — see below)"
+        )
+        shell_tokens = int(len(curator_shell.split()) * 1.4)
+
+        qa_section = ""
+        token_budget = MAX_INPUT_TOKENS - shell_tokens
+        for i in range(k):
+            voted_answer = outputs_list[-(k - i)]["final_answer"]
+            entry = (
+                f"### Question {batch_start+i+1}\n{batch_input_txts[i]}\n\n"
+                f"### Majority-Voted Answer {batch_start+i+1}\n{voted_answer}\n\n---\n\n"
+            )
+            entry_tokens = int(len(entry.split()) * 1.4)
+            if entry_tokens > token_budget and token_budget > 200:
+                keep_words = max(int(token_budget / 1.4) - 20, 50)
+                entry = " ".join(entry.split()[:keep_words]) + "\n[...truncated]\n\n---\n\n"
+                entry_tokens = token_budget
+            if token_budget <= 0:
+                log.warning(f"  Curator prompt truncated at Q&A {i+1}/{k} to fit context window")
+                break
+            token_budget -= entry_tokens
+            qa_section += entry
+
+        curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
+        curator_history = [{"role": "user", "content": curator_prompt}]
+        log.info(f"  Batch {b+1}/{num_batches}: curating cheatsheet from {k} Q&A pairs...")
+        curator_output = model.generate(
+            history=curator_history,
+            temperature=temperature,
+            max_tokens=2 * max_tokens,
+            allow_code_execution=False,
+        )
+        cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, cheatsheet))
+        outputs_list[-1]["final_cheatsheet"] = cheatsheet
+
+    pbar.close()
+    elapsed = time.time() - t0
+    accuracy = correct / n if n else 0
+
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    gen_tag = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
+    cur_tag = CURATOR_MODEL.split("/")[-1]
+    fname = f"{gen_tag}__{cur_tag}_MultiGenerator_Cumulative_{ts}.jsonl"
+    out_dir = os.path.join(save_dir, task)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, fname)
+    save_results_jsonl(out_path, outputs_list, accuracy, correct, n)
+
+    log.info(f"  => {accuracy:.1%} ({correct}/{n}) in {elapsed:.0f}s  -> {out_path}")
+
+    if auditor:
+        audit_report = auditor.finalize()
+        log.info(f"  >> Cheatsheet audit saved to {audit_report.get('audit_dir', '')}")
+
+    return {
+        "generators": [m.split("/")[-1] for m in GENERATOR_MODELS],
+        "curator": CURATOR_MODEL.split("/")[-1],
+        "approach": "MultiGenerator_Cumulative",
         "dataset": task,
         "accuracy": accuracy,
         "correct": correct,
@@ -574,9 +819,9 @@ def main():
 
             log.info(f"\n  >>> {approach} | {task}")
 
-            use_batch = (args.backend == "vllm" and approach == "MultiGenerator")
+            use_vllm = (args.backend == "vllm")
             try:
-                if use_batch:
+                if use_vllm and approach == "MultiGenerator":
                     summary = run_multi_generator_batched(
                         model=model,
                         task=task,
@@ -584,6 +829,17 @@ def main():
                         max_tokens=args.max_tokens,
                         temperature=args.temperature,
                         save_dir=args.save_dir,
+                    )
+                elif use_vllm and approach == "MultiGenerator_Cumulative":
+                    summary = run_multi_generator_cumulative_batched(
+                        model=model,
+                        task=task,
+                        max_samples=args.max_samples,
+                        max_tokens=args.max_tokens,
+                        temperature=args.temperature,
+                        save_dir=args.save_dir,
+                        batch_size=32,
+                        cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                     )
                 else:
                     summary = run_single(
