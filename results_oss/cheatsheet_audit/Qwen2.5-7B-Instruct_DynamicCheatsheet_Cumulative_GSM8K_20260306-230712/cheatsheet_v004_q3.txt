@@ -1,0 +1,106 @@
+# Cheatsheet after Q4
+# Correct: True  |  Answer: 55  |  Target: 55
+# Tokens: ~590  |  Memory items: 4
+# ======================================================================
+
+Version: 3.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine the total cost of athletic gear purchased by Alison, we need to calculate the cost of each item individually and then sum them up. This involves handling discounts, sales, and coupons effectively.
+</description>
+<example>
+Given:
+- Tank top: $10
+- Running shorts: $10 + $5 = $15
+- Tennis shoes: Originally $48, on sale for half price, so $48 / 2 = $24
+- Athletic socks: Package of $8 with a $2 off coupon, so $8 - $2 = $6
+
+Solution:
+1. Calculate the cost of each item.
+2. Sum up the total cost.
+
+Using Python:
+```python
+# Define the costs of individual items
+tank_top_cost = 10
+running_shorts_cost = tank_top_cost + 5
+tennis_shoes_cost = 48 / 2
+athletic_socks_cost = 8 - 2
+
+# Calculate the total cost
+total_cost = tank_top_cost + running_shorts_cost + tennis_shoes_cost + athletic_socks_cost
+total_cost
+```
+
+Output: 55.0
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+To handle discounts, sales, and coupons effectively, break down the cost of each item and apply the discount or sale price before summing up the total cost.
+</description>
+<example>
+Given:
+- Item A: Original price $20, on sale for 20% off
+- Item B: Original price $30, with a $5 coupon
+- Item C: Original price $50, no discount
+
+Solution:
+1. Apply the sale or coupon to each item.
+2. Sum up the total cost.
+
+Using Python:
+```python
+# Define the costs of individual items
+item_a_cost = 20 * (1 - 0.20)  # 20% off
+item_b_cost = 30 - 5  # $5 coupon
+item_c_cost = 50  # No discount
+
+# Calculate the total cost
+total_cost = item_a_cost + item_b_cost + item_c_cost
+total_cost
+```
+
+Output: 95.0
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+To calculate the total cost of multiple items with varying discounts and coupons, ensure each item's cost is adjusted correctly and then summed up.
+</description>
+<example>
+Given:
+- Item X: Original price $60, on sale for 10% off
+- Item Y: Original price $40, with a $10 coupon
+- Item Z: Original price $20, no discount
+
+Solution:
+1. Apply the sale or coupon to each item.
+2. Sum up the total cost.
+
+Using Python:
+```python
+# Define the costs of individual items
+item_x_cost = 60 * (1 - 0.10)  # 10% off
+item_y_cost = 40 - 10  # $10 coupon
+item_z_cost = 20  # No discount
+
+# Calculate the total cost
+total_cost = item_x_cost + item_y_cost + item_z_cost
+total_cost
+```
+
+Output: 100.0
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+When dealing with discounts, sales, and coupons, break down the cost of each item, apply the appropriate discount or coupon, and then sum up the total cost. This ensures accurate and efficient calculation of the final amount spent.
+</description>
+</memory_item>

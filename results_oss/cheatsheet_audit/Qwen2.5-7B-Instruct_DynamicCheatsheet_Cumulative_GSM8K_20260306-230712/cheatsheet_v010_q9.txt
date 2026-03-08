@@ -1,0 +1,153 @@
+# Cheatsheet after Q10
+# Correct: True  |  Answer: 147  |  Target: 147
+# Tokens: ~816  |  Memory items: 4
+# ======================================================================
+
+Version: 8.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To solve problems where the total number of items is distributed among individuals with certain relationships, set up equations based on the given conditions and solve for the unknowns.
+</description>
+<example>
+Given:
+- Total number of Pokemon caught: 339
+- Alex has caught 5 more than Stan: \( A = S + 5 \)
+- Stan has caught 13 less than 4 times as many as Adelwolfe: \( S = 4W - 13 \)
+
+Solution:
+1. Set up the equation for the total number of Pokemon:
+   \[
+   A + S + W = 339
+   \]
+2. Substitute \( A \) and \( S \) in terms of \( W \):
+   \[
+   (S + 5) + S + W = 339
+   \]
+   \[
+   2S + W + 5 = 339
+   \]
+   \[
+   2S + W = 334
+   \]
+3. Substitute \( S = 4W - 13 \) into the equation:
+   \[
+   2(4W - 13) + W = 334
+   \]
+   \[
+   8W - 26 + W = 334
+   \]
+   \[
+   9W - 26 = 334
+   \]
+   \[
+   9W = 360
+   \]
+   \[
+   W = 40
+   \]
+4. Find \( S \):
+   \[
+   S = 4W - 13
+   \]
+   \[
+   S = 4(40) - 13
+   \]
+   \[
+   S = 160 - 13
+   \]
+   \[
+   S = 147
+   \]
+
+Final Answer: 147
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For problems involving the distribution of items among individuals with certain relationships, set up equations based on the given conditions and solve for the unknowns using substitution and algebraic manipulation.
+</description>
+<example>
+Given:
+- Total number of items: 100
+- Person A has twice as many as Person B: \( A = 2B \)
+- Person C has 10 more than Person B: \( C = B + 10 \)
+
+Solution:
+1. Set up the equation for the total number of items:
+   \[
+   A + B + C = 100
+   \]
+2. Substitute \( A \) and \( C \) in terms of \( B \):
+   \[
+   2B + B + (B + 10) = 100
+   \]
+   \[
+   4B + 10 = 100
+   \]
+   \[
+   4B = 90
+   \]
+   \[
+   B = 22.5
+   \]
+3. Find \( A \) and \( C \):
+   \[
+   A = 2B = 2(22.5) = 45
+   \]
+   \[
+   C = B + 10 = 22.5 + 10 = 32.5
+   \]
+
+Final Answer: 22.5
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+When solving problems involving the distribution of items among individuals with certain relationships, use algebraic substitution and simplification to find the unknown quantities.
+</description>
+<example>
+Given:
+- Total number of items: 200
+- Person A has 10 more than twice as many as Person B: \( A = 2B + 10 \)
+- Person C has 20 less than three times as many as Person B: \( C = 3B - 20 \)
+
+Solution:
+1. Set up the equation for the total number of items:
+   \[
+   A + B + C = 200
+   \]
+2. Substitute \( A \) and \( C \) in terms of \( B \):
+   \[
+   (2B + 10) + B + (3B - 20) = 200
+   \]
+   \[
+   6B - 10 = 200
+   \]
+   \[
+   6B = 210
+   \]
+   \[
+   B = 35
+   \]
+3. Find \( A \) and \( C \):
+   \[
+   A = 2B + 10 = 2(35) + 10 = 70 + 10 = 80
+   \]
+   \[
+   C = 3B - 20 = 3(35) - 20 = 105 - 20 = 85
+   \]
+
+Final Answer: 35
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+For problems involving the distribution of items among individuals with certain relationships, identify the relationships and set up equations accordingly. Use substitution and algebraic manipulation to solve for the unknowns.
+</description>
+</memory_item>

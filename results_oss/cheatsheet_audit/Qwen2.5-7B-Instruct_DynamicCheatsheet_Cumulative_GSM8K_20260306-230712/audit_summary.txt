@@ -1,0 +1,46 @@
+========================================================================
+  CHEATSHEET AUDIT SUMMARY
+========================================================================
+  Model:     Qwen/Qwen2.5-7B-Instruct
+  Task:      GSM8K
+  Approach:  DynamicCheatsheet_Cumulative
+  Generator: Qwen/Qwen2.5-7B-Instruct
+  Curator:   Qwen/Qwen2.5-7B-Instruct
+  Questions: 15
+  Accuracy:  86.7% (13/15)
+
+--- Token Growth ---
+  Initial: 163  Final: 938  Max: 938  Mean: 591
+  Exceeded 2K tokens: 0 times
+  Exceeded 4K tokens: 0 times
+
+--- Memory Items ---
+  Final count: 4
+  Unique items ever created: 54
+  Long-lived (present in 2+ versions): 0
+  Ephemeral (appeared once): 54
+
+--- Reuse Analysis ---
+  Questions where cheatsheet existed: 15
+  Generator ignored cheatsheet: 3 (20% ignore rate)
+
+--- Effectiveness ---
+  Accuracy BEFORE cheatsheet exists: 0.0%
+  Accuracy AFTER  cheatsheet exists: 86.7%
+  Delta: +86.7%
+
+--- Structural Quality ---
+  Final word count: 722
+  Issues: no_usage_counters
+
+--- Abstraction Mismatch ---
+  Generator: 7.0B  Curator: 7.0B
+  Mismatch detected: False
+
+--- Failure Patterns ---
+  Overly specific tricks: 0
+  Shallow summaries: 0
+  Stale (no update): 0
+
+Full audit data: results_oss/cheatsheet_audit/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260306-230712
+========================================================================

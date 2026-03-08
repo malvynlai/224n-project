@@ -1,0 +1,88 @@
+# Cheatsheet after Q3
+# Correct: False  |  Answer: 8  |  Target: 6
+# Tokens: ~650  |  Memory items: 3
+# ======================================================================
+
+Version: 2.1
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine how many scoops of ice cream Erin can get under a special deal where she buys 2 scoops and gets 1 free, we need to calculate the number of sets of 2 scoops she can afford and then multiply by 3 (since each set gives 3 scoops). This example also shows how to calculate the number of bottles of water John drinks based on his drinking rate and the time spent on different activities.
+</description>
+<example>
+Given:
+- Cost per scoop = $1.50
+- Total money = $6.00
+
+Solution:
+1. Calculate the cost for 2 scoops: \(2 \times 1.50 = \$3.00\).
+2. Determine how many sets of 2 scoops Erin can buy: \(\frac{6.00}{3.00} = 2\) sets.
+3. Calculate the total number of scoops: \(2 \times 3 = 6\) scoops.
+
+Using Python:
+```python
+# Define the cost per scoop and total money Erin has
+cost_per_scoop = 1.50
+total_money = 6.00
+
+# Calculate the cost for 2 scoops (since 2 scoops + 1 free = 3 scoops)
+cost_for_two_scoops = 2 * cost_per_scoop
+
+# Determine how many sets of 2 scoops Erin can buy
+sets_of_two_scoops = total_money // cost_for_two_scoops
+
+# Calculate the total number of scoops
+total_scoops = sets_of_two_scoops * 3
+total_scoops
+```
+
+Output: 6
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+To determine how many bottles of water John drinks in a given period, we need to calculate the total time spent on different activities and then divide by the time interval between drinking water (every 30 minutes).
+</description>
+<example>
+Given:
+- Time for normal Sudoku: 45 minutes
+- Time for extreme Sudoku: 4 times the normal Sudoku, which is \(4 \times 45 = 180\) minutes
+- Total time = 45 minutes + 180 minutes = 225 minutes
+- Time per bottle of water: 30 minutes
+
+Solution:
+1. Calculate the total time spent on both types of Sudoku puzzles.
+2. Divide the total time by the time per bottle of water to find the number of bottles.
+
+Using Python:
+```python
+# Define the time taken for different types of Sudoku puzzles
+normal_sudoku_time = 45  # in minutes
+extreme_sudoku_time = 4 * normal_sudoku_time  # in minutes
+
+# Calculate the total time spent on both types of Sudoku puzzles
+total_time = normal_sudoku_time + extreme_sudoku_time  # in minutes
+
+# Define the time per bottle of water
+time_per_bottle = 30  # in minutes
+
+# Calculate the number of bottles of water John drinks
+number_of_bottles = total_time / time_per_bottle
+
+number_of_bottles
+```
+
+Output: 7.5
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+When dealing with deals that offer additional items for free, calculate the cost of the paid items and determine how many sets of those items can be bought with the available funds. Then, multiply the number of sets by the total number of items received (paid + free).
+
+For calculating the number of bottles of water someone drinks, sum up the total time spent on different activities and divide by the time interval between drinking water.
+</description>
+</memory_item>

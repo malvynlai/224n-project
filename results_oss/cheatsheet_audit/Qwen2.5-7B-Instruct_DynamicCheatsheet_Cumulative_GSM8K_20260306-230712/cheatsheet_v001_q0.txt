@@ -1,0 +1,39 @@
+# Cheatsheet after Q1
+# Correct: True  |  Answer: 3  |  Target: 3
+# Tokens: ~163  |  Memory items: 2
+# ======================================================================
+
+Version: 1.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine how many times Peter can go to the movies given his budget and the cost per visit, we need to divide his total budget by the cost per visit.
+</description>
+<example>
+Given:
+- Total budget = $42
+- Cost per visit = $14
+
+Solution:
+\[ \text{Number of visits} = \frac{\text{Total Budget}}{\text{Cost Per Visit}} \]
+
+Using Python:
+```python
+total_budget = 42
+cost_per_visit = 14
+
+number_of_visits = total_budget // cost_per_visit
+number_of_visits
+```
+
+Output: 3
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+When faced with a budget allocation problem, identify the total available resources and the cost per unit. Use integer division to determine how many full units can be purchased within the given budget.
+</description>
+</memory_item>

@@ -1,22 +1,13 @@
 [
   {
     "model": "Qwen/Qwen2.5-7B-Instruct",
-    "approach": "default",
+    "approach": "DynamicCheatsheet_Cumulative",
     "task": "GSM8K",
-    "accuracy": 0.8673237300985596,
-    "correct": 1144,
-    "total": 1319,
-    "elapsed_s": 499.3,
-    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_default_20260306-2203.jsonl"
-  },
-  {
-    "model": "Qwen/Qwen2.5-7B-Instruct",
-    "approach": "default",
-    "task": "MMLU_Pro_Engineering",
-    "accuracy": 0.33539731682146545,
-    "correct": 325,
-    "total": 969,
-    "elapsed_s": 387.2,
-    "output_file": "results_oss/MMLU_Pro_Engineering/Qwen2.5-7B-Instruct_default_20260306-2209.jsonl"
+    "accuracy": 0.8666666666666667,
+    "correct": 13,
+    "total": 15,
+    "elapsed_s": 1838.5,
+    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260306-2337.jsonl",
+    "audit_dir": "results_oss/cheatsheet_audit/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260306-230712"
   }
 ]

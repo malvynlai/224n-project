@@ -1,0 +1,85 @@
+# Cheatsheet after Q8
+# Correct: True  |  Answer: 50  |  Target: 50
+# Tokens: ~526  |  Memory items: 4
+# ======================================================================
+
+Version: 6.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine the cost per stick of beef jerky when buying a bag at a discounted price, follow these steps:
+1. Calculate the discounted price of the bag.
+2. Divide the discounted price by the number of sticks in the bag to find the cost per stick.
+3. Convert the cost from dollars to cents if necessary.
+</description>
+<example>
+Given:
+- Original price of the bag: $18.00
+- Discount: $3.00
+- Number of sticks in the bag: 30
+
+Solution:
+1. Calculate the discounted price:
+\[ \text{Discounted Price} = 18.00 - 3.00 = 15.00 \]
+2. Calculate the cost per stick:
+\[ \text{Cost per Stick} = \frac{15.00}{30} = 0.50 \]
+3. Convert the cost to cents:
+\[ 0.50 \text{ dollars} = 50 \text{ cents} \]
+
+Final Answer: 50
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For problems involving the calculation of cost per unit after a discount, identify the original price, the discount amount, and the quantity of units. Then, calculate the discounted price and the cost per unit.
+</description>
+<example>
+Given:
+- Original price of the bag: $25.00
+- Discount: $5.00
+- Number of sticks in the bag: 50
+
+Solution:
+1. Calculate the discounted price:
+\[ \text{Discounted Price} = 25.00 - 5.00 = 20.00 \]
+2. Calculate the cost per stick:
+\[ \text{Cost per Stick} = \frac{20.00}{50} = 0.40 \]
+3. Convert the cost to cents:
+\[ 0.40 \text{ dollars} = 40 \text{ cents} \]
+
+Final Answer: 40
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+When solving problems involving the calculation of cost per unit after a discount, use the formula:
+\[ \text{Cost per Unit} = \frac{\text{Discounted Price}}{\text{Quantity of Units}} \]
+Convert the result to cents if necessary.
+</description>
+<example>
+Given:
+- Original price of the bag: $30.00
+- Discount: $7.00
+- Number of sticks in the bag: 40
+
+Solution:
+1. Calculate the discounted price:
+\[ \text{Discounted Price} = 30.00 - 7.00 = 23.00 \]
+2. Calculate the cost per stick:
+\[ \text{Cost per Stick} = \frac{23.00}{40} = 0.575 \]
+3. Convert the cost to cents:
+\[ 0.575 \text{ dollars} = 57.5 \text{ cents} \]
+
+Final Answer: 57.5
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+For problems involving the calculation of cost per unit after a discount, identify the original price, the discount amount, and the quantity of units. Use the formula to calculate the discounted price and the cost per unit. Convert the result to cents if necessary.
+</description>
+</memory_item>

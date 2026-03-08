@@ -1,0 +1,110 @@
+# Cheatsheet after Q6
+# Correct: True  |  Answer: 4  |  Target: 4
+# Tokens: ~585  |  Memory items: 4
+# ======================================================================
+
+Version: 4.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine how many people John lost to during his arm wrestling matches, given the total number of matches and the percentage of matches won, follow these steps:
+1. Identify the total number of matches and the percentage of matches won.
+2. Calculate the number of matches won by multiplying the total number of matches by the percentage of matches won.
+3. Subtract the number of matches won from the total number of matches to find the number of matches lost.
+</description>
+<example>
+Given:
+- Total number of matches: 20
+- Percentage of matches won: 80%
+
+Solution:
+1. Calculate the number of matches won: \(20 \times 0.80 = 16\)
+2. Determine the number of matches lost: \(20 - 16 = 4\)
+
+Using Python:
+```python
+# Given values
+total_matches = 20
+percentage_won = 0.80
+
+# Calculate the number of matches won
+matches_won = total_matches * percentage_won
+
+# Calculate the number of matches lost
+matches_lost = total_matches - matches_won
+matches_lost
+```
+
+Output: 4
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For problems involving the calculation of matches won or lost, use the given total number of matches and the percentage of matches won to find the number of matches lost through subtraction.
+</description>
+<example>
+Given:
+- Total number of matches: 30
+- Percentage of matches won: 70%
+
+Solution:
+1. Calculate the number of matches won: \(30 \times 0.70 = 21\)
+2. Determine the number of matches lost: \(30 - 21 = 9\)
+
+Using Python:
+```python
+# Given values
+total_matches = 30
+percentage_won = 0.70
+
+# Calculate the number of matches won
+matches_won = total_matches * percentage_won
+
+# Calculate the number of matches lost
+matches_lost = total_matches - matches_won
+matches_lost
+```
+
+Output: 9
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+When solving problems involving the distribution of items (or matches in this case) among different outcomes, use the given percentages to calculate the number of items in one category and then subtract from the total to find the number of items in another category.
+</description>
+<example>
+Given:
+- Total number of matches: 50
+- Percentage of matches won: 60%
+
+Solution:
+1. Calculate the number of matches won: \(50 \times 0.60 = 30\)
+2. Determine the number of matches lost: \(50 - 30 = 20\)
+
+Using Python:
+```python
+# Given values
+total_matches = 50
+percentage_won = 0.60
+
+# Calculate the number of matches won
+matches_won = total_matches * percentage_won
+
+# Calculate the number of matches lost
+matches_lost = total_matches - matches_won
+matches_lost
+```
+
+Output: 20
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+For problems involving the distribution of items among different categories, identify the known quantities, apply the given relationships, and use subtraction to find the unknown quantities.
+</description>
+</memory_item>

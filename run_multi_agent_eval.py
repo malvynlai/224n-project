@@ -202,6 +202,7 @@ def run_single(
     execute_code: bool = True,
     save_dir: str = "results_multi_agent",
     shuffle_seed: int = 10,
+    cheatsheet_verbose: bool = False,
 ) -> Dict:
     dataset = load_from_disk(f"data/{task}")
     rng = np.random.RandomState(shuffle_seed)
@@ -213,6 +214,18 @@ def run_single(
     cheatsheet_template = (
         CURATOR_PROMPT if approach == "MultiGenerator_Cumulative" else "(empty)"
     )
+
+    auditor = None
+    if cheatsheet_verbose and "Cumulative" in approach:
+        from dynamic_cheatsheet.utils.cheatsheet_auditor import CheatsheetAuditor
+        auditor = CheatsheetAuditor(
+            save_dir=save_dir,
+            model_name=CURATOR_MODEL,
+            task=task,
+            approach=approach,
+            generator_model=GENERATOR_MODELS[0],
+            curator_model=CURATOR_MODEL,
+        )
 
     outputs: List[dict] = []
     generator_outputs_so_far: List[str] = []
@@ -264,6 +277,17 @@ def run_single(
         total += 1
         acc = correct / total if total else 0
 
+        if auditor:
+            auditor.record(
+                question_idx=idx,
+                question_text=input_txt,
+                cheatsheet=cheatsheet,
+                generator_output=output_dict.get("final_output", ""),
+                final_answer=final_answer,
+                target=target,
+                is_correct=is_correct,
+            )
+
         per_gen = output_dict.get("all_generator_answers")
         if per_gen:
             log.info(f"  Q{idx+1} per-generator answers: {per_gen}")
@@ -294,6 +318,10 @@ def run_single(
             f.write(json.dumps(row) + "\n")
 
     log.info(f"  => {accuracy:.1%} ({correct}/{total}) in {elapsed:.0f}s  -> {out_path}")
+
+    if auditor:
+        audit_report = auditor.finalize()
+        log.info(f"  >> Cheatsheet audit saved to {audit_report.get('audit_dir', '')}")
 
     return {
         "generators": [m.split("/")[-1] for m in GENERATOR_MODELS],
@@ -464,6 +492,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help=f"Approaches to run. Default: {ALL_APPROACHES}")
     p.add_argument("--datasets", nargs="+", default=None,
                     help=f"Datasets to run. Default: {ALL_DATASETS}")
+    p.add_argument("--cheatsheet_verbose", action="store_true",
+                    help="Enable cheatsheet auditing: save snapshots after every "
+                         "update, track token growth, reuse, failure patterns, "
+                         "and abstraction mismatch. Output goes to "
+                         "<save_dir>/cheatsheet_audit/")
     return p
 
 
@@ -563,6 +596,7 @@ def main():
                         max_num_rounds=args.max_num_rounds,
                         execute_code=not args.no_code_execution,
                         save_dir=args.save_dir,
+                        cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                     )
                 all_summaries.append(summary)
             except Exception as exc:

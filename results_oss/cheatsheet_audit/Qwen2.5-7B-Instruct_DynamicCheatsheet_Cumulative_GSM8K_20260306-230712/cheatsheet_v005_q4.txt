@@ -1,0 +1,107 @@
+# Cheatsheet after Q5
+# Correct: True  |  Answer: 9  |  Target: 9
+# Tokens: ~609  |  Memory items: 4
+# ======================================================================
+
+Version: 3.1
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To determine the number of blue jellybeans in a jar, given the total number of jellybeans, the number of green jellybeans, and the relationship between the number of green and red jellybeans, follow these steps:
+1. Identify the known quantities.
+2. Calculate the number of red jellybeans based on the given relationship.
+3. Subtract the number of green and red jellybeans from the total to find the number of blue jellybeans.
+</description>
+<example>
+Given:
+- Total number of jellybeans: 60
+- Number of green jellybeans: 17
+- Number of red jellybeans: Twice the number of green jellybeans (2 * 17)
+
+Solution:
+1. Calculate the number of red jellybeans: 2 * 17 = 34
+2. Determine the number of blue jellybeans: 60 - 17 - 34 = 9
+
+Using Python:
+```python
+# Given values
+total_jellybeans = 60
+green_jellybeans = 17
+red_jellybeans = 2 * green_jellybeans
+
+# Calculate the number of blue jellybeans
+blue_jellybeans = total_jellybeans - green_jellybeans - red_jellybeans
+blue_jellybeans
+```
+
+Output: 9
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+To solve similar problems involving the distribution of items among different categories, break down the known quantities and apply the given relationships to find the unknown quantity.
+</description>
+<example>
+Given:
+- Total number of items: 100
+- Number of category A items: 20
+- Number of category B items: Three times the number of category A items (3 * 20)
+
+Solution:
+1. Calculate the number of category B items: 3 * 20 = 60
+2. Determine the number of category C items: 100 - 20 - 60 = 20
+
+Using Python:
+```python
+# Given values
+total_items = 100
+category_a_items = 20
+category_b_items = 3 * category_a_items
+
+# Calculate the number of category C items
+category_c_items = total_items - category_a_items - category_b_items
+category_c_items
+```
+
+Output: 20
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For problems involving the distribution of items among different categories, use the given relationships to calculate the unknown quantities and then subtract from the total to find the remaining items.
+</description>
+<example>
+Given:
+- Total number of items: 80
+- Number of category X items: 15
+- Number of category Y items: Four times the number of category X items (4 * 15)
+
+Solution:
+1. Calculate the number of category Y items: 4 * 15 = 60
+2. Determine the number of category Z items: 80 - 15 - 60 = 5
+
+Using Python:
+```python
+# Given values
+total_items = 80
+category_x_items = 15
+category_y_items = 4 * category_x_items
+
+# Calculate the number of category Z items
+category_z_items = total_items - category_x_items - category_y_items
+category_z_items
+```
+
+Output: 5
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+When solving problems involving the distribution of items among different categories, identify the known quantities, apply the given relationships, and use subtraction to find the unknown quantities.
+</description>
+</memory_item>

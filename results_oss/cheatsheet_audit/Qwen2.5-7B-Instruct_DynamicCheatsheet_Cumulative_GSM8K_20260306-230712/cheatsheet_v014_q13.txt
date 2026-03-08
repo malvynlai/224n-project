@@ -1,0 +1,95 @@
+# Cheatsheet after Q14
+# Correct: True  |  Answer: 16  |  Target: 16
+# Tokens: ~573  |  Memory items: 4
+# ======================================================================
+
+Version: 12.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To solve problems where a person's future age is a multiple of their current age, follow these steps:
+1. Determine the current age using the information about a future age.
+2. Set up an equation where the future age equals a multiple of the current age.
+3. Solve for the number of years it takes for the condition to be met.
+</description>
+<example>
+Given:
+- In 10 years, Melanie will be 18 years old.
+
+Solution:
+1. Determine Melanie's current age:
+   \[
+   \text{Current age} + 10 = 18 \implies \text{Current age} = 18 - 10 = 8
+   \]
+2. Set up the equation for when her age will be three times her current age:
+   \[
+   8 + x = 3 \times 8 \implies 8 + x = 24
+   \]
+3. Solve for \( x \):
+   \[
+   x = 24 - 8 = 16
+   \]
+
+Final Answer: 16
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For similar problems, always start by finding the current age using the given future age, then set up an equation based on the multiple relationship.
+</description>
+<example>
+Given:
+- In 5 years, John will be 21 years old.
+
+Solution:
+1. Determine John's current age:
+   \[
+   \text{Current age} + 5 = 21 \implies \text{Current age} = 21 - 5 = 16
+   \]
+2. Set up the equation for when his age will be twice his current age:
+   \[
+   16 + x = 2 \times 16 \implies 16 + x = 32
+   \]
+3. Solve for \( x \):
+   \[
+   x = 32 - 16 = 16
+   \]
+
+Final Answer: 16
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+When solving problems involving the future age being a multiple of the current age, use the formula \(\text{Future age} = \text{Current age} + x\) and set it equal to the multiple of the current age.
+</description>
+<example>
+Given:
+- In 7 years, Sarah will be 25 years old.
+
+Solution:
+1. Determine Sarah's current age:
+   \[
+   \text{Current age} + 7 = 25 \implies \text{Current age} = 25 - 7 = 18
+   \]
+2. Set up the equation for when her age will be four times her current age:
+   \[
+   18 + x = 4 \times 18 \implies 18 + x = 72
+   \]
+3. Solve for \( x \):
+   \[
+   x = 72 - 18 = 54
+   \]
+
+Final Answer: 54
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+For problems involving the future age being a multiple of the current age, always start by finding the current age, then set up an equation based on the multiple relationship. This approach ensures accuracy and clarity in the solution.
+</description>
+</memory_item>

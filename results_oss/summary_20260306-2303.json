@@ -1,0 +1,11 @@
+[
+  {
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "approach": "DynamicCheatsheet_Cumulative",
+    "task": "GSM8K",
+    "accuracy": 0.8666666666666667,
+    "correct": 13,
+    "total": 15,
+    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260306-2303.jsonl"
+  }
+]

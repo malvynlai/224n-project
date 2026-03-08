@@ -1,0 +1,39 @@
+# Cheatsheet after Q1
+# Correct: True  |  Answer: 3  |  Target: 3
+# Tokens: ~224  |  Memory items: 2
+# ======================================================================
+
+Version: 1.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+Determine how many times Peter can go to the movies with a given budget when each visit costs a fixed amount.
+(Reference: Q1)
+</description>
+<example>
+To solve this problem, calculate the total cost per visit and then divide the total budget by the cost per visit.
+```python
+# Define the total money Peter has and the cost per visit
+total_money = 42
+cost_per_visit = 7 + 7
+
+# Calculate the number of visits
+number_of_visits = total_money // cost_per_visit
+print(number_of_visits)
+```
+**Count:** 1
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+When dealing with budget allocation problems, break down the total cost into individual components and use integer division to determine the maximum number of occurrences within the given budget.
+(Reference: Q1)
+</description>
+<example>
+For example, if Peter needs to allocate his budget between multiple expenses, calculate the cost of each expense and then use integer division to find out how many times each expense can be covered within the budget.
+**Count:** 1
+</example>
+</memory_item>

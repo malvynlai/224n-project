@@ -47,7 +47,7 @@ from dynamic_cheatsheet.utils.evaluation import (
     eval_for_exact_matching_with_no_punctuation,
     eval_for_multiple_choice,
 )
-from dynamic_cheatsheet.utils.extractor import extract_answer
+from dynamic_cheatsheet.utils.extractor import extract_answer, extract_cheatsheet
 
 # ─────────────────────────────────────────────────────────────────────
 # MODEL CATALOGUE
@@ -305,6 +305,7 @@ def run_single(
     execute_code: bool = True,
     save_dir: str = "results_oss",
     shuffle_seed: int = 10,
+    cheatsheet_verbose: bool = False,
 ) -> Dict:
     dataset = load_from_disk(f"data/{task}")
     rng = np.random.RandomState(shuffle_seed)
@@ -316,6 +317,16 @@ def run_single(
     cheatsheet_template = (
         CURATOR_CUMULATIVE if approach == "DynamicCheatsheet_Cumulative" else "(empty)"
     )
+
+    auditor = None
+    if cheatsheet_verbose and "Cheatsheet" in approach:
+        from dynamic_cheatsheet.utils.cheatsheet_auditor import CheatsheetAuditor
+        auditor = CheatsheetAuditor(
+            save_dir=save_dir,
+            model_name=model_name,
+            task=task,
+            approach=approach,
+        )
 
     outputs: List[dict] = []
     generator_outputs_so_far: List[str] = []
@@ -375,6 +386,17 @@ def run_single(
             correct += 1
         total += 1
 
+        if auditor:
+            auditor.record(
+                question_idx=idx,
+                question_text=input_txt,
+                cheatsheet=cheatsheet,
+                generator_output=output_dict.get("final_output", ""),
+                final_answer=final_answer,
+                target=target,
+                is_correct=is_correct,
+            )
+
         outputs.append({
             "idx": idx,
             "input": input_txt,
@@ -411,6 +433,12 @@ def run_single(
         "output_file": out_path,
     }
     log.info(f"  >> {task} done: {correct}/{total} = {accuracy:.1%} in {elapsed:.0f}s -> {out_path}")
+
+    if auditor:
+        audit_report = auditor.finalize()
+        summary["audit_dir"] = audit_report.get("audit_dir", "")
+        log.info(f"  >> Cheatsheet audit saved to {audit_report.get('audit_dir', '')}")
+
     return summary
 
 
@@ -594,6 +622,7 @@ def run_sequential(args, models, approaches, datasets, completed):
                             max_num_rounds=args.max_num_rounds,
                             execute_code=not args.no_code_execution,
                             save_dir=args.save_dir,
+                            cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                         )
                     all_summaries.append(summary)
                 except Exception as exc:
@@ -671,6 +700,8 @@ def run_parallel(args, models, approaches, datasets, completed):
             cmd.append("--no_code_execution")
         if args.resume:
             cmd.append("--resume")
+        if getattr(args, 'cheatsheet_verbose', False):
+            cmd.append("--cheatsheet_verbose")
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -784,6 +815,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Skip already-completed (model, approach, dataset) triples")
     p.add_argument("--no_parallel", action="store_true",
                     help="Disable multi-GPU parallelism (run sequentially)")
+    p.add_argument("--cheatsheet_verbose", action="store_true",
+                    help="Enable cheatsheet auditing: save snapshots after every "
+                         "update, track token growth, reuse, failure patterns, "
+                         "and abstraction mismatch. Output goes to "
+                         "<save_dir>/cheatsheet_audit/")
     # Internal flags for worker subprocesses
     p.add_argument("--_worker", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--_gpu", type=int, default=None, help=argparse.SUPPRESS)

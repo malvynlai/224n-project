@@ -1,0 +1,101 @@
+# Cheatsheet after Q11
+# Correct: True  |  Answer: 2  |  Target: 2
+# Tokens: ~600  |  Memory items: 4
+# ======================================================================
+
+Version: 9.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To solve problems involving the calculation of time taken for a journey with multiple segments, break down the journey into individual segments, calculate the time for each segment, and sum them up.
+</description>
+<example>
+Given:
+- Distance to the halfway point: 2 miles
+- Speed: 4 miles per hour
+
+Solution:
+1. Calculate the time to the halfway point:
+   \[
+   \text{Time} = \frac{\text{Distance}}{\text{Speed}} = \frac{2 \text{ miles}}{4 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+2. Calculate the time to return home:
+   \[
+   \text{Time} = \frac{2 \text{ miles}}{4 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+3. Calculate the time to reach the store from home:
+   \[
+   \text{Time} = \frac{4 \text{ miles}}{4 \text{ miles/hour}} = 1 \text{ hour}
+   \]
+
+Total time = 0.5 hours + 0.5 hours + 1 hour = 2 hours
+
+Final Answer: 2
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+For problems involving the calculation of time for a journey with multiple segments, identify the distances and speeds involved, break down the journey into segments, and calculate the time for each segment before summing them up.
+</description>
+<example>
+Given:
+- Distance to the halfway point: 3 miles
+- Speed: 6 miles per hour
+
+Solution:
+1. Calculate the time to the halfway point:
+   \[
+   \text{Time} = \frac{3 \text{ miles}}{6 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+2. Calculate the time to return home:
+   \[
+   \text{Time} = \frac{3 \text{ miles}}{6 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+3. Calculate the time to reach the destination from home:
+   \[
+   \text{Time} = \frac{6 \text{ miles}}{6 \text{ miles/hour}} = 1 \text{ hour}
+   \]
+
+Total time = 0.5 hours + 0.5 hours + 1 hour = 2 hours
+
+Final Answer: 2
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+When solving problems involving the calculation of time for a journey with multiple segments, use the formula \(\text{Time} = \frac{\text{Distance}}{\text{Speed}}\) for each segment and sum the times to get the total time.
+</description>
+<example>
+Given:
+- Distance to the halfway point: 5 miles
+- Speed: 10 miles per hour
+
+Solution:
+1. Calculate the time to the halfway point:
+   \[
+   \text{Time} = \frac{5 \text{ miles}}{10 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+2. Calculate the time to return home:
+   \[
+   \text{Time} = \frac{5 \text{ miles}}{10 \text{ miles/hour}} = 0.5 \text{ hours}
+   \]
+3. Calculate the time to reach the destination from home:
+   \[
+   \text{Time} = \frac{10 \text{ miles}}{10 \text{ miles/hour}} = 1 \text{ hour}
+   \]
+
+Total time = 0.5 hours + 0.5 hours + 1 hour = 2 hours
+
+Final Answer: 2
+</example>
+</memory_item>
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+For problems involving the calculation of time for a journey with multiple segments, identify the distances and speeds involved, break down the journey into segments, and calculate the time for each segment before summing them up.
+</description>
+</memory_item>
