@@ -125,7 +125,7 @@ GENERAL META-REASONING STRATEGIES
 </cheatsheet>
 ```
 
-N.B. Make sure that all information related to the cheatsheet is wrapped inside the <cheatsheet> block. The cheatsheet can be as long as circa 2000-2500 words.
+N.B. Make sure that all information related to the cheatsheet is wrapped inside the <cheatsheet> block. IMPORTANT: Keep the cheatsheet under ~800 words to fit within the model's context limit (8192 tokens). Prioritize the most useful, reusable entries.
 
 -----
 -----

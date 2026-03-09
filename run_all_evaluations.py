@@ -176,7 +176,7 @@ def format_input(task: str, raw_input: str, idx: int) -> str:
     return text
 
 
-MAX_CHEATSHEET_WORDS = 1200
+MAX_CHEATSHEET_WORDS = 800
 
 def cap_cheatsheet(cheatsheet: str) -> str:
     """Enforce a hard word cap on the cheatsheet to prevent context overflow."""
@@ -187,6 +187,82 @@ def cap_cheatsheet(cheatsheet: str) -> str:
         return cheatsheet
     log.warning(f"  Cheatsheet exceeded {MAX_CHEATSHEET_WORDS} words ({len(words)}), truncating")
     return " ".join(words[:MAX_CHEATSHEET_WORDS]) + "\n\n[...cheatsheet truncated to fit context window]"
+
+
+def shrink_cheatsheet_to_words(cheatsheet: str, max_words: int) -> str:
+    """Truncate cheatsheet to at most max_words."""
+    if cheatsheet == "(empty)":
+        return cheatsheet
+    words = cheatsheet.split()
+    if len(words) <= max_words:
+        return cheatsheet
+    return " ".join(words[:max_words]) + "\n\n[...truncated to fit context]"
+
+
+MAX_CONTEXT_TOKENS = 8192
+MAX_CURATOR_INPUT_TOKENS = 4096  # leave room for output
+
+
+def _truncate_qa_section(qa_entries: List[str], max_total_words: int) -> str:
+    """Truncate Q&A entries to fit within ~max_total_words (split evenly)."""
+    if not qa_entries:
+        return ""
+    n = len(qa_entries)
+    words_per_entry = max(30, max_total_words // n)
+    out = []
+    for entry in qa_entries:
+        words = entry.split()
+        if len(words) > words_per_entry:
+            out.append(" ".join(words[:words_per_entry]) + "\n[...truncated]\n\n---\n\n")
+        else:
+            out.append(entry)
+    return "".join(out)
+
+
+def build_curator_prompt_within_limit(
+    manager,
+    curator_model_name: str,
+    template: str,
+    cheatsheet: str,
+    qa_entries: List[str],
+    batch_size: int = 32,
+) -> str:
+    """
+    Build curator prompt, shrinking Q&A section first (main culprit), then cheatsheet if needed.
+    Token count must be <= MAX_CURATOR_INPUT_TOKENS. Uses actual tokenizer for accurate count.
+    """
+    qa_placeholder = "[[MODEL_ANSWER]]"
+    question_text = f"(Batch of {batch_size} questions — see below)"
+    cheatsheet_words = cheatsheet.split() if cheatsheet != "(empty)" else []
+    max_cs_words = len(cheatsheet_words)
+    # Start with full cheatsheet; Q&A gets truncated first (it's usually the bulk of tokens)
+    max_qa_words = 5000  # generous initial
+
+    for attempt in range(25):
+        cs = shrink_cheatsheet_to_words(cheatsheet, max_cs_words) if cheatsheet != "(empty)" else "(empty)"
+        qa_section = _truncate_qa_section(qa_entries, max_qa_words)
+        shell = template.replace("[[PREVIOUS_CHEATSHEET]]", cs).replace(
+            "[[QUESTION]]", question_text
+        )
+        curator_prompt = shell.replace(qa_placeholder, qa_section)
+        history = [{"role": "user", "content": curator_prompt}]
+        if hasattr(manager, "count_prompt_tokens"):
+            count = manager.count_prompt_tokens(history, curator_model_name)
+        else:
+            count = int(len(curator_prompt.split()) * 1.4)
+        if count <= MAX_CURATOR_INPUT_TOKENS:
+            return curator_prompt
+        # Shrink Q&A first (dominant); reserve ~1200 tokens (~850 words) for template+cheatsheet
+        if max_qa_words > 800:
+            max_qa_words = max(400, int(max_qa_words * 0.7))
+            log.warning(f"  Curator prompt {count} tokens > {MAX_CURATOR_INPUT_TOKENS}; shrinking Q&A to ~{max_qa_words} words")
+        elif max_cs_words > 100:
+            max_cs_words = max(100, int(max_cs_words * 0.8))
+            log.warning(f"  Curator prompt {count} tokens > {MAX_CURATOR_INPUT_TOKENS}; shrinking cheatsheet to {max_cs_words} words")
+        else:
+            log.warning(f"  Curator prompt still {count} tokens; using best-effort truncation")
+            return curator_prompt
+    return curator_prompt
 
 
 def save_results_jsonl(out_path: str, rows: List[dict], accuracy: float,
@@ -231,6 +307,9 @@ def run_key(model_name: str, approach: str, task: str) -> str:
 
 
 def find_completed_runs(save_dir: str) -> set:
+    """Find (model, approach, task) runs that already have output files.
+    Handles approach names with underscores (e.g. DynamicCheatsheet_Cumulative).
+    """
     completed = set()
     save_path = Path(save_dir)
     if not save_path.exists():
@@ -241,14 +320,19 @@ def find_completed_runs(save_dir: str) -> set:
         task = task_dir.name
         for jsonl in task_dir.glob("*.jsonl"):
             stem = jsonl.stem
-            parts = stem.rsplit("_", 2)
-            if len(parts) >= 3:
-                short_model = parts[0]
-                approach = parts[1]
-                for m in ALL_MODELS:
-                    if m.split("/")[-1] == short_model:
-                        completed.add(run_key(m, approach, task))
-                        break
+            # Format: {short_model}_{approach}_{timestamp}; approach may contain "_"
+            parts = stem.rsplit("_", 1)
+            if len(parts) != 2:
+                continue
+            prefix, ts = parts
+            if not (len(ts) >= 10 and ts[0:8].isdigit() and ts[8] == "-"):
+                continue
+            for m in ALL_MODELS:
+                short = m.split("/")[-1]
+                if prefix.startswith(short + "_"):
+                    approach = prefix[len(short) + 1:]
+                    completed.add(run_key(m, approach, task))
+                    break
     return completed
 
 
@@ -687,35 +771,26 @@ def run_single_batched_cumulative(
             )
 
         # Phase 4: single curator call with ALL Q&A pairs from this batch
-        # Budget in approximate tokens (words * 1.4). Reserve 2048 tokens
-        # for model output and keep total input under 6000 tokens.
-        MAX_INPUT_TOKENS = 6000
-        curator_shell = CURATOR_CUMULATIVE.replace(
-            "[[PREVIOUS_CHEATSHEET]]", cheatsheet
-        ).replace(
-            "[[QUESTION]]", f"(Batch of {k} questions — see below)"
-        )
-        shell_tokens = int(len(curator_shell.split()) * 1.4)
-
-        qa_section = ""
-        token_budget = MAX_INPUT_TOKENS - shell_tokens
-        for i in range(k):
-            entry = (
+        # Build qa_entries (full content), then build_curator_prompt_within_limit truncates Q&A first, cheatsheet second
+        qa_entries = [
+            (
                 f"### Question {batch_start+i+1}\n{batch_input_txts[i]}\n\n"
                 f"### Model Answer {batch_start+i+1}\n{gen_outputs[i]}\n\n---\n\n"
             )
-            entry_tokens = int(len(entry.split()) * 1.4)
-            if entry_tokens > token_budget and token_budget > 200:
-                keep_words = max(int(token_budget / 1.4) - 20, 50)
-                entry = " ".join(entry.split()[:keep_words]) + "\n[...truncated]\n\n---\n\n"
-                entry_tokens = token_budget
-            if token_budget <= 0:
-                log.warning(f"  Curator prompt truncated at Q&A {i+1}/{k} to fit context window")
-                break
-            token_budget -= entry_tokens
-            qa_section += entry
+            for i in range(k)
+        ]
 
-        curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
+        manager = getattr(model, "local_manager", None)
+        if manager is not None:
+            curator_prompt = build_curator_prompt_within_limit(
+                manager, model_name, CURATOR_CUMULATIVE, cheatsheet, qa_entries, batch_size=k,
+            )
+        else:
+            curator_shell = CURATOR_CUMULATIVE.replace(
+                "[[PREVIOUS_CHEATSHEET]]", cheatsheet
+            ).replace("[[QUESTION]]", f"(Batch of {k} questions — see below)")
+            qa_section = "".join(qa_entries)
+            curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
         curator_history = [{"role": "user", "content": curator_prompt}]
         log.info(f"  Batch {b+1}/{num_batches}: curating cheatsheet from {k} Q&A pairs...")
         curator_output = model.generate(

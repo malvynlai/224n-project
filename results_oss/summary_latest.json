@@ -2,16 +2,6 @@
   {
     "model": "Qwen/Qwen2.5-7B-Instruct",
     "approach": "DynamicCheatsheet_Cumulative",
-    "task": "GSM8K",
-    "accuracy": 0.78013646702047,
-    "correct": 1029,
-    "total": 1319,
-    "elapsed_s": 3051.0,
-    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260307-2319.jsonl"
-  },
-  {
-    "model": "Qwen/Qwen2.5-7B-Instruct",
-    "approach": "DynamicCheatsheet_Cumulative",
     "task": "MMLU_Pro_Engineering",
     "accuracy": null,
     "correct": 0,

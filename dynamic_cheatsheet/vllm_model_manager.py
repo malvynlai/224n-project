@@ -152,12 +152,33 @@ class VLLMModelManager:
         for name in names:
             print(f"[VLLMModelManager] Unloaded {name}")
 
+    def _ensure_tokenizer(self, model_name: str):
+        """Load tokenizer if not already loaded (cheap, no GPU)."""
+        if model_name in self._tokenizers:
+            return
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=True
+        )
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        self._tokenizers[model_name] = tokenizer
+
     def _format_chat(self, messages: List[dict], model_name: str) -> str:
         """Apply the model's chat template to format messages into a prompt string."""
+        self._ensure_tokenizer(model_name)
         tokenizer = self._tokenizers[model_name]
         return tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
+
+    def count_prompt_tokens(self, messages: List[dict], model_name: str) -> int:
+        """Count tokens for the formatted prompt (same as would be sent to vLLM)."""
+        self._ensure_tokenizer(model_name)
+        prompt = self._format_chat(messages, model_name)
+        return len(self._tokenizers[model_name].encode(
+            prompt, add_special_tokens=False
+        ))
 
     def _make_sampling_params(self, temperature: float, max_tokens: int):
         from vllm import SamplingParams
