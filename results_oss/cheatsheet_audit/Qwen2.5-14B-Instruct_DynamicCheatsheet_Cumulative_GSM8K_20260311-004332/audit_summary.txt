@@ -1,0 +1,52 @@
+========================================================================
+  CHEATSHEET AUDIT SUMMARY
+========================================================================
+  Model:     Qwen/Qwen2.5-14B-Instruct
+  Task:      GSM8K
+  Approach:  DynamicCheatsheet_Cumulative
+  Generator: Qwen/Qwen2.5-14B-Instruct
+  Curator:   Qwen/Qwen2.5-14B-Instruct
+  Questions: 200
+  Accuracy:  74.5% (149/200)
+
+--- Token Growth ---
+  Initial: 1  Final: 677  Max: 1047  Mean: 837
+  Exceeded 2K tokens: 0 times
+  Exceeded 4K tokens: 0 times
+
+--- Memory Items ---
+  Final count: 8
+  Unique items ever created: 50
+  Long-lived (present in 2+ versions): 20
+  Ephemeral (appeared once): 0
+  Top reused items:
+    [32x] Calculate the earnings from lemonade sales, given the total earnings and the ear...
+    [32x] Calculate the combined value of two houses, given the value of one house and the...
+    [32x] Calculate the total number of legs the restaurant's tables have, given the numbe...
+    [32x] Calculate the time required for two people working together to complete a puzzle...
+    [32x] Calculate the remaining amount of money needed to buy a car and a phone, given t...
+
+--- Reuse Analysis ---
+  Questions where cheatsheet existed: 168
+  Generator ignored cheatsheet: 3 (2% ignore rate)
+
+--- Effectiveness ---
+  Accuracy BEFORE cheatsheet exists: 84.4%
+  Accuracy AFTER  cheatsheet exists: 72.6%
+  Delta: -11.8%
+
+--- Structural Quality ---
+  Final word count: 521
+  No structural issues detected.
+
+--- Abstraction Mismatch ---
+  Generator: 14.0B  Curator: 14.0B
+  Mismatch detected: False
+
+--- Failure Patterns ---
+  Overly specific tricks: 0
+  Shallow summaries: 0
+  Stale (no update): 162
+
+Full audit data: results_oss/cheatsheet_audit/Qwen2.5-14B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260311-004332
+========================================================================

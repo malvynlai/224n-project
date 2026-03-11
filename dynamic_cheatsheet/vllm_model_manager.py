@@ -47,7 +47,7 @@ class VLLMModelManager:
         gpu_memory_utilization: float = 0.90,
         max_models: int = 1,
         tensor_parallel_size: int = 1,
-        max_model_len: int = 8192,
+        max_model_len: int = 32768,
     ):
         self.quantization = quantization
         self.gpu_memory_utilization = gpu_memory_utilization

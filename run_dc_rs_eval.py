@@ -113,7 +113,7 @@ TASK_INPUT_PREFIX: Dict[str, str] = {
     ),
 }
 
-MAX_CHEATSHEET_WORDS = 800
+MAX_CHEATSHEET_WORDS = 3000
 
 log = logging.getLogger("dc_rs")
 

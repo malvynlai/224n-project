@@ -73,7 +73,7 @@ ALL_DATASETS = [
 GENERATOR_PROMPT_PATH = "prompts/generator_prompt.txt"
 CURATOR_PROMPT_RS_PATH = "prompts/curator_prompt_for_dc_retrieval_synthesis.txt"
 
-MAX_CHEATSHEET_WORDS = 800
+MAX_CHEATSHEET_WORDS = 3000
 
 # ─────────────────────────────────────────────────────────────────────
 # Helpers

@@ -13,8 +13,8 @@ This document records every configurable detail for each experiment type. **Five
 | **Max tokens** | 2048 |
 | **Temperature** | 0.0 (default); 0.7 for self-consistency |
 | **Shuffle seed** | 10 |
-| **Max cheatsheet words** | 800 |
-| **Max curator input tokens** | 6000 |
+| **Max cheatsheet words** | 3000 |
+| **Max context (vLLM)** | 32768 tokens; no curator input truncation |
 | **Retrieve top-k** (for retrieval-based approaches) | 3 |
 
 ### Evaluation Types (by dataset)
@@ -44,6 +44,7 @@ This document records every configurable detail for each experiment type. **Five
 
 ### DC-Cumulative Curation Details
 - **Generator batch size** (`--dc_batch_size`): 32 (default); use 1 for per-question curation.
+- **Empirical note:** On GSM8K, DC-Cu often *hurts* SLM accuracy (see [Cheatsheet Audit](#cheatsheet-audit-empirical-findings--failure-analysis)).
 - **Curator sub-batch size**: 8 Q&A pairs per curator call (4 curator calls per batch when batch_size=32).
 - **Curator prompt**: `prompts/curator_prompt_for_dc_cumulative.txt`.
 - **Flow per batch**: (1) Batch-generate answers with current cheatsheet; (2) Run curator in sub-batches of 8; (3) Update cheatsheet; (4) Checkpoint.
@@ -170,20 +171,138 @@ Combines multi-agent (3 generators + 1 curator, majority vote) with DC-RS (retri
 
 ---
 
-## Cheatsheet Audit Notes
+## Cheatsheet Audit: Empirical Findings & Failure Analysis
 
-*(Use this section to record observations from `--cheatsheet_verbose` runs. Audit output goes to `<save_dir>/cheatsheet_audit/<model>_<approach>_<task>_<timestamp>/`.)*
+**Key empirical finding:** For SLMs, DC-Cu (Dynamic Cheatsheet Cumulative) often **does not help and sometimes hurts** accuracy. This section documents concrete failure patterns, quantifies reuse, and provides audit guidance.
+
+### How to Run Audits
+
+Use `--cheatsheet_verbose` with DC-Cumulative approaches. Output goes to:
+`<save_dir>/cheatsheet_audit/<model>_<approach>_<task>_<timestamp>/`
+
+Example:
+```bash
+python run_all_evaluations.py --approaches DynamicCheatsheet_Cumulative \
+  --datasets GSM8K --max_samples 200 --dc_batch_size 1 --cheatsheet_verbose
+```
 
 ---
 
-### Audit run: [date / run id]
+### Empirical Results (GSM8K, 200 samples)
 
-**Setup:** model, approach, dataset, dc_batch_size, sample count
+| Model | default | DC-Cu | Delta |
+|-------|---------|-------|-------|
+| Qwen2.5-7B  | 89.5% | 79.5% | **-10.0%** |
+| Qwen2.5-14B | 75.5% | 74.5% | **-1.0%** |
 
-**Observations:**
-- Token growth over questions:
-- Memory item reuse patterns:
-- Failure patterns:
-- Abstraction mismatch (curator vs generator):
+**Accuracy before vs after cheatsheet exists:**
+- 7B:  90.6% (Q1–31) → 77.4% (Q32–200) = **-13.2%**
+- 14B: 84.4% (Q1–31) → 72.6% (Q32–200) = **-11.8%**
+
+DC-Cu consistently hurts once the cheatsheet is populated. The generator *uses* the cheatsheet (low ignore rate ~2%) but the content is not helpful.
+
+---
+
+### Failure Patterns (from audit)
+
+#### 1. Overly specific tricks
+Memory items often encode **problem-specific solutions** rather than reusable strategies. Example from 14B audit:
+
+```
+<description>Calculate the total distance biked by Alisa and Stanley based on their speeds and times. (Reference: Q177)</description>
+<example>
+alisa_speed = 12  # miles per hour
+stanley_speed = 10  # miles per hour
+total_distance = alisa_speed * 4.5 + stanley_speed * 2.5
+</example>
+```
+
+These are near-copy-paste solutions with hardcoded numbers. They do not generalize to new problems.
+
+#### 2. Shallow summaries
+Some curators produce very short, generic items (“break into smaller parts”) that add little signal. The 7B curator tended toward slightly more abstract heuristics (e.g., “Use algebraic equations”, “Break down complex problems”) but still with limited reuse.
+
+#### 3. Stale / no updates
+With `dc_batch_size=32`, the cheatsheet updates only every 32 questions. Within a batch, it stays unchanged (**162 “stale” snapshots** in one 200-Q run). The curator sees 8 Q&A pairs at once and may overwrite rather than incrementally refine.
+
+#### 4. Low effective reuse
+- **Usage counts:** Most items have `Count: 1` — they are written once and never reused.
+- **Long-lived vs ephemeral:** Many items persist across versions (20 long-lived) but their *content* is too specific to help on new questions.
+- **Reuse metric:** “Top reused” tracks *presence* in versions, not whether the generator actually applied the strategy correctly.
+
+---
+
+### Practical SLM Issues
+
+#### Token growth & “lost in the middle”
+- **Current cap:** 3000 words (~3900 tokens) via `MAX_CHEATSHEET_WORDS`.
+- **Observed:** 7B final ~806 words, 14B final ~521 words; neither exceeded 2K tokens in these runs.
+- **Recommendation:** Enforce a strict token cap (e.g., 600–800 tokens) and monitor growth. Long cheatsheets push useful content to the middle, where SLMs attend less.
+
+#### Structured formatting
+The curator prompt asks for `<memory_item>`, `<description>`, `<example>`, and `** Count: N **`. Small models sometimes:
+- Drop tags or produce malformed blocks
+- Produce examples that are too long or too specific
+- Fail to maintain usage counters
+
+Audit flags: `no_memory_item_tags`, `no_description_tags`, `no_usage_counters`, `exceeds_2500_word_guideline`.
+
+#### Abstraction mismatch (mixed-scale curator)
+When the **curator is larger** than the generator (e.g., 14B curator, 7B generators):
+- The curator may write compact, abstract rules the 7B cannot follow
+- The 7B may ignore or misapply them
+- **Audit check:** `abstraction_mismatch.detected` when `curator_size > 1.5 × generator_size`
+
+In same-model runs (7B–7B, 14B–14B), mismatch is false. For multi-agent setups with a larger curator, this should be monitored.
+
+---
+
+### Quantified Reuse (from audit_summary.json)
+
+| Metric | 7B | 14B |
+|--------|-----|-----|
+| Final memory items | 2 | 8 |
+| Unique items ever created | 58 | 50 |
+| Long-lived (2+ versions) | 20 | 20 |
+| Generator ignored cheatsheet | 3 (2%) | 3 (2%) |
+| Stale (no update) | 162 | 162 |
+
+---
+
+### Example Cheatsheet (14B, after Q200)
+
+The final cheatsheet contained 8 items. Representative item:
+
+```
+<memory_item>
+<description>Calculate the total cost of 6 erasers and 8 pencils. (Reference: Q181)</description>
+<example>
+cost_eraser = 2
+cost_pencil = 3
+total_cost = 6 * 2 + 8 * 3
+</example>
+**Count: 1**
+</memory_item>
+```
+
+This is a restatement of a single problem with concrete numbers, not a reusable pattern like “For unit-cost problems: total = quantity × unit_price”.
+
+---
+
+### Recommendations
+
+1. **Stricter caps:** Enforce a hard token limit (e.g., 600 tokens) and prioritize recent, high-value items.
+2. **Better curation prompts:** Encourage *general* heuristics and patterns, not problem-specific solutions. Discourage hardcoded numbers and Q-refs in examples.
+3. **Smaller batches:** Use `dc_batch_size=1` for per-question curation when auditing; this reduces staleness and may improve incremental updates.
+4. **Abstraction alignment:** For mixed-scale setups, prefer a curator no larger than the generator, or prompt the curator to write at the generator’s level.
+5. **Reuse validation:** Track whether items with Count > 1 actually correlate with correct answers on similar questions.
+
+### Audit Output Structure
+
+Each audit run produces:
+- `audit_summary.json` — Full metrics (token growth, reuse, failure patterns, abstraction mismatch)
+- `audit_summary.txt` — Human-readable summary
+- `audit_log.jsonl` — Per-question log (token_count, num_memory_items, is_correct, etc.)
+- `cheatsheet_v{N}_q{M}.txt` — Cheatsheet snapshot after question M
 
 ---

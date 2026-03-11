@@ -28,5 +28,35 @@
     "total": 200,
     "elapsed_s": 11145.5,
     "output_path": "results_multi_agent/GSM8K/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_Cumulative_20260311-010927.jsonl"
+  },
+  {
+    "generators": [
+      "Qwen2.5-7B-Instruct",
+      "Qwen2.5-14B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-14B-Instruct",
+    "approach": "MultiGenerator",
+    "dataset": "MMLU_Pro_Engineering",
+    "accuracy": 0.325,
+    "correct": 65,
+    "total": 200,
+    "elapsed_s": 1303.8,
+    "output_path": "results_multi_agent/MMLU_Pro_Engineering/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_20260311-013112.jsonl"
+  },
+  {
+    "generators": [
+      "Qwen2.5-7B-Instruct",
+      "Qwen2.5-14B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-14B-Instruct",
+    "approach": "MultiGenerator_Cumulative",
+    "dataset": "MMLU_Pro_Engineering",
+    "accuracy": 0.335,
+    "correct": 67,
+    "total": 200,
+    "elapsed_s": 14058.3,
+    "output_path": "results_multi_agent/MMLU_Pro_Engineering/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_Cumulative_20260311-052530.jsonl"
   }
 ]
