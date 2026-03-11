@@ -1,6 +1,0 @@
-# Cheatsheet after Q3
-# Correct: False  |  Answer: 360  |  Target: 6
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

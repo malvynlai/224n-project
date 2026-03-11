@@ -575,6 +575,12 @@ def run_multi_generator_batched(
 # Batched MultiGenerator_Cumulative (vLLM)
 # ─────────────────────────────────────────────────────────────────────
 
+def _ckpt_path_mg_cu(save_dir: str, task: str) -> str:
+    gen_tag = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
+    cur_tag = CURATOR_MODEL.split("/")[-1]
+    return os.path.join(save_dir, task, f".ckpt_{gen_tag}__{cur_tag}_MultiGenerator_Cumulative.json")
+
+
 def run_multi_generator_cumulative_batched(
     model: LanguageModel,
     task: str,
@@ -596,6 +602,8 @@ def run_multi_generator_cumulative_batched(
       3. Consolidate all Q&A pairs into a single curator prompt          (1 vLLM call)
     Total LLM calls per batch: len(GENERATOR_MODELS) + 1
     Total overall: (len(GENERATOR_MODELS) + 1) * ceil(N / batch_size)
+
+    Checkpoints after every batch so runs can resume after interruption.
     """
     from collections import Counter as _Counter
 
@@ -621,11 +629,31 @@ def run_multi_generator_cumulative_batched(
     cheatsheet = "(empty)"
     outputs_list: List[dict] = []
     correct = 0
+    start_batch = 0
+
+    # Resume from checkpoint if available
+    ckpt_file = _ckpt_path_mg_cu(save_dir, task)
+    os.makedirs(os.path.join(save_dir, task), exist_ok=True)
+    if os.path.exists(ckpt_file):
+        try:
+            with open(ckpt_file) as f:
+                ckpt = json.load(f)
+            if (ckpt.get("n") == n and ckpt.get("batch_size") == batch_size
+                    and ckpt.get("shuffle_seed") == shuffle_seed):
+                start_batch = ckpt["next_batch"]
+                cheatsheet = ckpt["cheatsheet"]
+                outputs_list = ckpt["outputs"]
+                correct = ckpt["correct"]
+                log.info(f"  Resuming from checkpoint: batch {start_batch+1} "
+                         f"({len(outputs_list)} questions done, {correct} correct)")
+        except Exception as e:
+            log.warning(f"  Could not load checkpoint: {e}; starting fresh")
 
     num_batches = (n + batch_size - 1) // batch_size
-    pbar = tqdm(range(n), desc=f"{gen_short}|MGCu_batch|{task}", unit="q", leave=True)
+    pbar = tqdm(range(n), desc=f"{gen_short}|MGCu_batch|{task}", unit="q",
+                leave=True, initial=len(outputs_list))
 
-    for b in range(num_batches):
+    for b in range(start_batch, num_batches):
         batch_start = b * batch_size
         batch_end = min(batch_start + batch_size, n)
         k = batch_end - batch_start
@@ -744,6 +772,21 @@ def run_multi_generator_cumulative_batched(
         cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, cheatsheet))
         outputs_list[-1]["final_cheatsheet"] = cheatsheet
 
+        # Checkpoint after every batch
+        ckpt_data = {
+            "next_batch": b + 1,
+            "cheatsheet": cheatsheet,
+            "outputs": outputs_list,
+            "correct": correct,
+            "n": n,
+            "batch_size": batch_size,
+            "shuffle_seed": shuffle_seed,
+            "task": task,
+        }
+        with open(ckpt_file, "w") as f:
+            json.dump(ckpt_data, f, default=str)
+        log.info(f"  Checkpoint saved: batch {b+1}/{num_batches} ({len(outputs_list)}/{n} questions)")
+
     pbar.close()
     elapsed = time.time() - t0
     accuracy = correct / n if n else 0
@@ -756,6 +799,11 @@ def run_multi_generator_cumulative_batched(
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, fname)
     save_results_jsonl(out_path, outputs_list, accuracy, correct, n)
+
+    # Remove checkpoint now that final results are saved
+    if os.path.exists(ckpt_file):
+        os.remove(ckpt_file)
+        log.info(f"  Checkpoint removed (run complete)")
 
     log.info(f"  => {accuracy:.1%} ({correct}/{n}) in {elapsed:.0f}s  -> {out_path}")
 

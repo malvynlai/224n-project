@@ -661,6 +661,10 @@ def run_single_batched(
 # Batched DC-Cumulative (vLLM) — mini-batch generator + single curator
 # ─────────────────────────────────────────────────────────────────────
 
+def _ckpt_path_dc_cu(save_dir: str, task: str, short_model: str) -> str:
+    return os.path.join(save_dir, task, f".ckpt_{short_model}_DynamicCheatsheet_Cumulative.json")
+
+
 def run_single_batched_cumulative(
     model: LanguageModel,
     model_name: str,
@@ -681,6 +685,8 @@ def run_single_batched_cumulative(
       1. Batch-generate answers sharing the current cheatsheet  (1 vLLM call)
       2. Consolidate all Q&A pairs into a single curator prompt  (1 vLLM call)
     Total LLM calls: 2 * ceil(N / batch_size) instead of 2 * N.
+
+    Checkpoints after every batch so runs can resume after interruption.
     """
     dataset = load_from_disk(f"data/{task}")
     rng = np.random.RandomState(shuffle_seed)
@@ -702,11 +708,31 @@ def run_single_batched_cumulative(
     cheatsheet = "(empty)"
     outputs: List[dict] = []
     correct = 0
+    start_batch = 0
+
+    # Resume from checkpoint if available
+    ckpt_file = _ckpt_path_dc_cu(save_dir, task, short_model_name)
+    os.makedirs(os.path.join(save_dir, task), exist_ok=True)
+    if os.path.exists(ckpt_file):
+        try:
+            with open(ckpt_file) as f:
+                ckpt = json.load(f)
+            if (ckpt.get("n") == n and ckpt.get("batch_size") == batch_size
+                    and ckpt.get("shuffle_seed") == shuffle_seed):
+                start_batch = ckpt["next_batch"]
+                cheatsheet = ckpt["cheatsheet"]
+                outputs = ckpt["outputs"]
+                correct = ckpt["correct"]
+                log.info(f"  Resuming from checkpoint: batch {start_batch+1} "
+                         f"({len(outputs)} questions done, {correct} correct)")
+        except Exception as e:
+            log.warning(f"  Could not load checkpoint: {e}; starting fresh")
 
     num_batches = (n + batch_size - 1) // batch_size
-    pbar = tqdm(range(n), desc=f"{short_model_name}|DC_Cu_batch|{task}", unit="q", leave=True)
+    pbar = tqdm(range(n), desc=f"{short_model_name}|DC_Cu_batch|{task}", unit="q",
+                leave=True, initial=len(outputs))
 
-    for b in range(num_batches):
+    for b in range(start_batch, num_batches):
         batch_start = b * batch_size
         batch_end = min(batch_start + batch_size, n)
         k = batch_end - batch_start
@@ -802,6 +828,22 @@ def run_single_batched_cumulative(
         cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, cheatsheet))
         outputs[-1]["final_cheatsheet"] = cheatsheet
 
+        # Checkpoint after every batch
+        ckpt_data = {
+            "next_batch": b + 1,
+            "cheatsheet": cheatsheet,
+            "outputs": outputs,
+            "correct": correct,
+            "n": n,
+            "batch_size": batch_size,
+            "shuffle_seed": shuffle_seed,
+            "model_name": model_name,
+            "task": task,
+        }
+        with open(ckpt_file, "w") as f:
+            json.dump(ckpt_data, f, default=str)
+        log.info(f"  Checkpoint saved: batch {b+1}/{num_batches} ({len(outputs)}/{n} questions)")
+
     pbar.close()
     elapsed = time.time() - t0
     accuracy = correct / n if n > 0 else 0.0
@@ -812,6 +854,11 @@ def run_single_batched_cumulative(
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f"{short_model}_DynamicCheatsheet_Cumulative_{ts}.jsonl")
     save_results_jsonl(out_path, outputs, accuracy, correct, n)
+
+    # Remove checkpoint now that final results are saved
+    if os.path.exists(ckpt_file):
+        os.remove(ckpt_file)
+        log.info(f"  Checkpoint removed (run complete)")
 
     summary = {
         "model": model_name,
