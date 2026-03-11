@@ -11,6 +11,9 @@ tiktoken
 scikit-learn
 litellm
 
+# ── DC-RS (run_dc_rs_eval.py) ─────────────────────────────────────
+sentence-transformers
+
 # ── Benchmark runner (run_benchmark.py) ───────────────────────────
 pandas
 typed-argument-parser

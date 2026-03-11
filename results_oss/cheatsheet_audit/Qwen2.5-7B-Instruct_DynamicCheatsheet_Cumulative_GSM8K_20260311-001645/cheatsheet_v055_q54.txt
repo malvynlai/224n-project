@@ -1,0 +1,176 @@
+# Cheatsheet after Q55
+# Correct: True  |  Answer: 45  |  Target: 45
+# Tokens: ~707  |  Memory items: 10
+# ======================================================================
+
+Version: 1.3
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To calculate the total earnings for Watson in April, considering his hourly wage and weekly bonus.
+</description>
+<example>
+```python
+# Watson's earnings calculation
+hourly_wage = 10
+hours_per_day = 10
+days_per_week = 5
+weeks_in_april = 4
+weekly_bonus = 300
+
+# Calculate weekly earnings
+weekly_earnings = hourly_wage * hours_per_day * days_per_week
+
+# Calculate total earnings for April
+total_earnings = weekly_earnings * weeks_in_april + weekly_bonus * weeks_in_april
+total_earnings
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To determine the number of pictures in each album, given the total number of pictures and albums.
+</description>
+<example>
+```python
+# Total pictures and albums
+total_pictures = 72
+total_albums = 8
+
+# Calculate pictures per album
+pictures_per_album = total_pictures / total_albums
+pictures_per_album
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total number of windows in the houses, considering the number of bedrooms and additional windows.
+</description>
+<example>
+```python
+# Number of houses and bedrooms
+houses = 2
+bedrooms_per_house = 3
+windows_per_bedroom = 2
+additional_windows_per_house = 4
+
+# Calculate total windows in bedrooms
+total_bedroom_windows = bedrooms_per_house * windows_per_bedroom * houses
+
+# Calculate total additional windows
+total_additional_windows = additional_windows_per_house * houses
+
+# Calculate total windows
+total_windows = total_bedroom_windows + total_additional_windows
+total_windows
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total cost of streaming services after a discount, considering the cost of each service and the discount.
+</description>
+<example>
+```python
+# Cost of each streaming service and discount
+cost_netflix = 10
+cost_hulu = 10
+cost_disney_plus = 10
+discount_percentage = 20
+
+# Calculate discounted cost of Hulu and Disney Plus
+discounted_cost_hulu = cost_hulu * (1 - discount_percentage / 100)
+discounted_cost_disney_plus = cost_disney_plus * (1 - discount_percentage / 100)
+
+# Calculate total streaming cost
+total_streaming_cost = cost_netflix + discounted_cost_hulu + discounted_cost_disney_plus
+total_streaming_cost
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the number of eggs each child receives when Chatty prepares a certain number of eggs for her children.
+</description>
+<example>
+```python
+# Number of eggs and number of children
+total_eggs = 3 * 12  # 3 dozen eggs
+number_of_children = 4
+
+# Calculate eggs per child
+eggs_per_child = total_eggs / number_of_children
+eggs_per_child
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the number of lollipops Erin has left after receiving more and giving some to Ella.
+</description>
+<example>
+```python
+# Initial number of lollipops, additional lollipops, and lollipops given to Ella
+initial_lollipops = 7
+additional_lollipops = 10
+lollipops_given_to_ella = 3
+
+# Calculate total lollipops
+total_lollipops = initial_lollipops + additional_lollipops
+
+# Calculate lollipops left
+lollipops_left = total_lollipops - lollipops_given_to_ella
+lollipops_left
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the number of feet Oliver must climb to reach the elevation of Stanley's comb.
+</description>
+<example>
+```python
+# Elevation of Stanley's comb and Oliver's current elevation
+elevation_comb = 10000 - 4000  # Stanley's elevation minus the fall
+elevation_oliver = 3000
+
+# Calculate feet Oliver must climb
+feet_to_climb = elevation_comb - elevation_oliver
+feet_to_climb
+```
+</example>
+</memory_item>
+** Count: 1
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+Use algebraic equations to solve problems involving multiple variables and relationships.
+</description>
+</memory_item>
+
+<memory_item>
+<description>
+Apply basic arithmetic operations to solve problems involving rates and distances.
+</description>
+</memory_item>
+
+<memory_item>
+<description>
+Break down complex problems into smaller, manageable parts and solve each part step-by-step.
+</description>
+</memory_item>

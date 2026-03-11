@@ -1,0 +1,225 @@
+# Cheatsheet after Q176
+# Correct: True  |  Answer: 62  |  Target: 62
+# Tokens: ~986  |  Memory items: 13
+# ======================================================================
+
+Version: 15.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+To calculate the total earnings if Jordan spent his video game time working instead of playing.
+</description>
+<example>
+```python
+# Given data
+hours_per_day = 2
+days_per_week = 7
+earnings_per_hour = 10
+
+# Calculate total video game hours in one week
+total_video_game_hours = hours_per_day * days_per_week
+
+# Calculate total earnings from working those hours
+total_earnings = total_video_game_hours * earnings_per_hour
+total_earnings
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To solve a system of equations involving ages of two people.
+</description>
+<example>
+```python
+# Given data
+# Wendy is five times as old as Colin will be seven years from now.
+# In 25 years, Colin will be a third as old as Wendy is now.
+
+# Define symbols
+C, W = symbols('C W')
+
+# Equation 1: Wendy is five times as old as Colin will be seven years from now
+eq1 = Eq(W, 5 * (C + 7))
+
+# Equation 2: In 25 years, Colin will be a third as old as Wendy is now
+eq2 = Eq(C + 25, W / 3)
+
+# Solve the system of equations
+solution = solve((eq1, eq2), (C, W))
+solution[C]
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total number of pairs of animal legs on a farm with 10 2-legged animals and 15 4-legged animals.
+</description>
+<example>
+```python
+# Given data
+num_2_legged_animals = 10
+num_4_legged_animals = 15
+
+# Calculate total number of legs
+total_legs = (num_2_legged_animals * 2) + (num_4_legged_animals * 4)
+
+# Calculate total number of pairs of legs
+total_pairs_of_legs = total_legs // 2
+total_pairs_of_legs
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total earnings if John works a full 7-day week.
+</description>
+<example>
+```python
+# Given data
+cycles_per_day = 30
+tasks_per_cycle = 5
+earnings_per_task = 1.20
+days_per_week = 7
+
+# Calculate earnings per cycle
+earnings_per_cycle = tasks_per_cycle * earnings_per_task
+
+# Calculate earnings per day
+earnings_per_day = earnings_per_cycle * cycles_per_day
+
+# Calculate earnings for the week
+total_earnings = earnings_per_day * days_per_week
+total_earnings
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the difference in the number of boxes of cereal bought this week compared to last week.
+</description>
+<example>
+```python
+# Given data
+boxes_coco_crunch = 3
+boxes_fruit_loops = 5
+boxes_last_week = 4
+
+# Calculate total boxes bought this week
+total_boxes_this_week = boxes_coco_crunch + boxes_fruit_loops
+
+# Calculate the difference
+difference = total_boxes_this_week - boxes_last_week
+difference
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total points Amy scores on a history test.
+</description>
+<example>
+```python
+# Given data
+multiple_choice_questions = 10
+true_false_questions = 20
+long_answer_questions = 5
+percentage_multiple_choice = 80 / 100
+percentage_true_false = 90 / 100
+points_long_answer = 5
+
+# Calculate points from multiple-choice questions
+points_multiple_choice = multiple_choice_questions * percentage_multiple_choice
+
+# Calculate points from true/false questions
+points_true_false = true_false_questions * percentage_true_false
+
+# Calculate points from long-answer questions
+points_long_answer = long_answer_questions * points_long_answer
+
+# Calculate total points
+total_points = points_multiple_choice + points_true_false + points_long_answer
+total_points
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the number of stitches for each sleeve in a sweater.
+</description>
+<example>
+```python
+# Given data
+body_stitches = 900
+collar_stitches = body_stitches / 10
+rosette_stitches = 2 * collar_stitches
+total_stitches = 1800
+
+# Calculate stitches for each sleeve
+sleeve_stitches = (total_stitches - (body_stitches + collar_stitches + rosette_stitches)) / 2
+sleeve_stitches
+```
+</example>
+</memory_item>
+** Count: 1
+
+<memory_item>
+<description>
+To calculate the total time Sandy took to walk in two days.
+</description>
+<example>
+```python
+# Given data
+hours_first_day = 8
+hours_second_day = hours_first_day / 2
+
+# Calculate total time
+total_time = hours_first_day + hours_second_day
+total_time * 60  # Convert hours to minutes
+```
+</example>
+</memory_item>
+** Count: 1
+
+GENERAL META-REASONING STRATEGIES
+<memory_item>
+<description>
+To solve problems involving proportional relationships, use the given ratios to find the unknown values.
+</description>
+</memory_item>
+<memory_item>
+<description>
+To solve problems involving time and work, break down the total time into segments and calculate the work done in each segment.
+</description>
+</memory_item>
+<memory_item>
+<description>
+To solve problems involving percentages, use the total percentage and subtract the known percentages to find the unknown percentage.
+</description>
+</memory_item>
+<memory_item>
+<description>
+To solve problems involving multiple steps, break down the problem into smaller, manageable parts and solve each part step-by-step.
+</description>
+</memory_item>
+<memory_item>
+<description>
+To solve problems involving consistent rates, use the given rates to calculate the unknown quantities.
+</description>
+</memory_item>
+```
+```
+
+This updated cheatsheet includes solutions for the provided questions, along with relevant code snippets and explanations. Each entry is designed to be clear, concise, and actionable, ensuring that the cheatsheet remains a valuable resource for future problem-solving.

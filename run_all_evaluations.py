@@ -33,6 +33,7 @@ import subprocess
 import sys
 import time
 import traceback
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
@@ -297,6 +298,29 @@ def evaluate_one(task: str, raw_input: str, answer: str, target: str) -> bool:
     return False
 
 
+def majority_vote(answers: List[str]) -> str:
+    """Return the most common answer; ties broken arbitrarily."""
+    if not answers:
+        return ""
+    return Counter(answers).most_common(1)[0][0]
+
+
+def get_approach_key(approach: str, self_consistency: bool, self_consistency_k: int) -> str:
+    """Return approach string for run_key and output filenames (includes self-consistency suffix)."""
+    if approach == "default" and self_consistency and self_consistency_k > 1:
+        return f"default_sc{self_consistency_k}"
+    return approach
+
+
+def _approach_key(approach: str, args) -> str:
+    """Get approach key from args (for run_key, resume, output filenames)."""
+    return get_approach_key(
+        approach,
+        getattr(args, "self_consistency", False),
+        getattr(args, "self_consistency_k", 5),
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Resume support
 # ─────────────────────────────────────────────────────────────────────
@@ -422,6 +446,8 @@ def run_single(
     save_dir: str = "results_oss",
     shuffle_seed: int = 10,
     cheatsheet_verbose: bool = False,
+    self_consistency: bool = False,
+    self_consistency_k: int = 5,
 ) -> Dict:
     dataset = load_from_disk(f"data/{task}")
     rng = np.random.RandomState(shuffle_seed)
@@ -451,6 +477,12 @@ def run_single(
     short_model_name = model_name.split("/")[-1]
     t0 = time.time()
 
+    use_sc = (
+        approach == "default"
+        and self_consistency
+        and self_consistency_k > 1
+    )
+
     pbar = tqdm(range(n), desc=f"{short_model_name}|{approach[:12]}|{task}", unit="q", leave=True)
     for idx in pbar:
         example = dataset[idx]
@@ -459,22 +491,46 @@ def run_single(
         input_txt = format_input(task, raw_input, idx)
 
         try:
-            output_dict = model.advanced_generate(
-                approach_name=approach,
-                input_txt=input_txt,
-                cheatsheet=cheatsheet,
-                generator_template=GENERATOR_PROMPT,
-                cheatsheet_template=cheatsheet_template,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                max_num_rounds=max_num_rounds,
-                allow_code_execution=execute_code,
-                code_execution_flag="EXECUTE CODE!",
-                original_input_corpus=None,
-                original_input_embeddings=None,
-                generator_outputs_so_far=generator_outputs_so_far,
-                retrieve_top_k=3,
-            )
+            if use_sc:
+                prompt = GENERATOR_PROMPT.replace(
+                    "[[QUESTION]]", input_txt
+                ).replace("[[CHEATSHEET]]", "(empty)")
+                history = [{"role": "user", "content": prompt}]
+                answers = []
+                outputs_raw = []
+                for _ in range(self_consistency_k):
+                    out = model.generate(
+                        history=history,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        allow_code_execution=execute_code,
+                    )
+                    outputs_raw.append(out)
+                    answers.append(extract_answer(out))
+                final_answer = majority_vote(answers)
+                output_dict = {
+                    "final_answer": final_answer,
+                    "final_output": outputs_raw[0] if outputs_raw else "",
+                    "final_cheatsheet": "(empty)",
+                    "steps": [],
+                }
+            else:
+                output_dict = model.advanced_generate(
+                    approach_name=approach,
+                    input_txt=input_txt,
+                    cheatsheet=cheatsheet,
+                    generator_template=GENERATOR_PROMPT,
+                    cheatsheet_template=cheatsheet_template,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    max_num_rounds=max_num_rounds,
+                    allow_code_execution=execute_code,
+                    code_execution_flag="EXECUTE CODE!",
+                    original_input_corpus=None,
+                    original_input_embeddings=None,
+                    generator_outputs_so_far=generator_outputs_so_far,
+                    retrieve_top_k=3,
+                )
         except Exception as exc:
             log.error(f"  [ERROR] idx={idx}: {exc}\n{traceback.format_exc()}")
             output_dict = {
@@ -533,12 +589,15 @@ def run_single(
     ts = datetime.now().strftime("%Y%m%d-%H%M")
     out_dir = os.path.join(save_dir, task)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"{short_model}_{approach}_{ts}.jsonl")
+    approach_for_file = get_approach_key(
+        approach, self_consistency, self_consistency_k
+    )
+    out_path = os.path.join(out_dir, f"{short_model}_{approach_for_file}_{ts}.jsonl")
     save_results_jsonl(out_path, outputs, accuracy, correct, total)
 
     summary = {
         "model": model_name,
-        "approach": approach,
+        "approach": approach_for_file,
         "task": task,
         "accuracy": accuracy,
         "correct": correct,
@@ -570,6 +629,8 @@ def run_single_batched(
     temperature: float = 0.0,
     save_dir: str = "results_oss",
     shuffle_seed: int = 10,
+    self_consistency: bool = False,
+    self_consistency_k: int = 5,
 ) -> Dict:
     """
     Batched evaluation for the 'default' approach (no cheatsheet dependency).
@@ -577,6 +638,8 @@ def run_single_batched(
     All questions are formatted up-front and processed in a single vLLM
     batch_generate() call, giving massive throughput gains via continuous
     batching and prefix caching.
+
+    With self_consistency: run k batch_generate calls and majority vote per question.
     """
     dataset = load_from_disk(f"data/{task}")
     rng = np.random.RandomState(shuffle_seed)
@@ -605,19 +668,27 @@ def run_single_batched(
         input_txts.append(input_txt)
         targets.append(target)
 
-    # Phase 2: batch generate
-    log.info(f"  Batch-generating {n} prompts for {short_model_name}|default|{task}...")
-    all_outputs = model.batch_generate(
-        histories, temperature=temperature, max_tokens=max_tokens,
-    )
+    # Phase 2: batch generate (k times if self-consistency)
+    k = self_consistency_k if (self_consistency and self_consistency_k > 1) else 1
+    all_outputs_list: List[List[str]] = []
+    for sample_idx in range(k):
+        log.info(f"  Batch-generating {n} prompts (sample {sample_idx+1}/{k}) for {short_model_name}|default|{task}...")
+        outs = model.batch_generate(
+            histories, temperature=temperature, max_tokens=max_tokens,
+        )
+        all_outputs_list.append(outs)
     batch_time = time.time() - t0
-    log.info(f"  Batch generation done in {batch_time:.1f}s ({batch_time/n:.2f}s/prompt)")
+    log.info(f"  Batch generation done in {batch_time:.1f}s ({batch_time/(n*k):.2f}s/prompt)")
 
-    # Phase 3: extract answers and evaluate
+    # Phase 3: extract answers, majority vote if k>1, and evaluate
     outputs: List[dict] = []
     correct = 0
     for idx in range(n):
-        final_answer = extract_answer(all_outputs[idx])
+        answers = [
+            extract_answer(all_outputs_list[sample_idx][idx])
+            for sample_idx in range(k)
+        ]
+        final_answer = majority_vote(answers)
         is_correct = evaluate_one(task, raw_inputs[idx], final_answer, targets[idx])
         if is_correct:
             correct += 1
@@ -628,8 +699,8 @@ def run_single_batched(
             "target": targets[idx],
             "final_answer": final_answer,
             "correct": is_correct,
-            "generator_output": all_outputs[idx],
-            "final_output": all_outputs[idx],
+            "generator_output": all_outputs_list[0][idx],
+            "final_output": all_outputs_list[0][idx],
         })
 
     elapsed = time.time() - t0
@@ -639,12 +710,13 @@ def run_single_batched(
     ts = datetime.now().strftime("%Y%m%d-%H%M")
     out_dir = os.path.join(save_dir, task)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"{short_model}_default_{ts}.jsonl")
+    approach_for_file = get_approach_key("default", self_consistency, self_consistency_k)
+    out_path = os.path.join(out_dir, f"{short_model}_{approach_for_file}_{ts}.jsonl")
     save_results_jsonl(out_path, outputs, accuracy, correct, n)
 
     summary = {
         "model": model_name,
-        "approach": "default",
+        "approach": approach_for_file,
         "task": task,
         "accuracy": accuracy,
         "correct": correct,
@@ -658,6 +730,7 @@ def run_single_batched(
 
 # ─────────────────────────────────────────────────────────────────────
 # Batched DC-Cumulative (vLLM) — mini-batch generator + single curator
+# (self-consistency is ignored for DC-Cumulative)
 # ─────────────────────────────────────────────────────────────────────
 
 def _ckpt_path_dc_cu(save_dir: str, task: str, short_model: str) -> str:
@@ -893,7 +966,7 @@ def run_sequential(args, models, approaches, datasets, completed):
     total_runs = len(models) * len(approaches) * len(datasets)
     skip_count = sum(
         1 for m in models for a in approaches for d in datasets
-        if run_key(m, a, d) in completed
+        if run_key(m, _approach_key(a, args), d) in completed
     )
     runs_to_do = total_runs - skip_count
     run_pbar = tqdm(total=runs_to_do, desc="Overall runs", unit="run", position=0)
@@ -902,7 +975,7 @@ def run_sequential(args, models, approaches, datasets, completed):
 
     for model_name in models:
         model_runs_needed = any(
-            run_key(model_name, a, d) not in completed
+            run_key(model_name, _approach_key(a, args), d) not in completed
             for a in approaches for d in datasets
         )
         if not model_runs_needed:
@@ -930,7 +1003,7 @@ def run_sequential(args, models, approaches, datasets, completed):
 
         for approach in approaches:
             for task in datasets:
-                key = run_key(model_name, approach, task)
+                key = run_key(model_name, _approach_key(approach, args), task)
 
                 if key in completed:
                     log.info(f"\n  SKIP (already done): "
@@ -949,6 +1022,8 @@ def run_sequential(args, models, approaches, datasets, completed):
                             max_tokens=args.max_tokens,
                             temperature=args.temperature,
                             save_dir=args.save_dir,
+                            self_consistency=getattr(args, "self_consistency", False),
+                            self_consistency_k=getattr(args, "self_consistency_k", 5),
                         )
                     elif use_batch and approach == "DynamicCheatsheet_Cumulative":
                         summary = run_single_batched_cumulative(
@@ -975,6 +1050,8 @@ def run_sequential(args, models, approaches, datasets, completed):
                             execute_code=not args.no_code_execution,
                             save_dir=args.save_dir,
                             cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
+                            self_consistency=getattr(args, "self_consistency", False),
+                            self_consistency_k=getattr(args, "self_consistency_k", 5),
                         )
                     all_summaries.append(summary)
                 except Exception as exc:
@@ -1056,6 +1133,9 @@ def run_parallel(args, models, approaches, datasets, completed):
             cmd.append("--cheatsheet_verbose")
         if getattr(args, 'dc_batch_size', 32) != 32:
             cmd.extend(["--dc_batch_size", str(args.dc_batch_size)])
+        if getattr(args, 'self_consistency', False):
+            cmd.append("--self_consistency")
+            cmd.extend(["--self_consistency_k", str(getattr(args, 'self_consistency_k', 5))])
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -1111,9 +1191,10 @@ def run_parallel(args, models, approaches, datasets, completed):
         for model_name in gpu_models:
             short = model_name.split("/")[-1]
             for approach in approaches:
+                approach_for_glob = _approach_key(approach, args)
                 for task in datasets:
                     task_dir = Path(args.save_dir) / task
-                    matches = sorted(task_dir.glob(f"{short}_{approach}_*.jsonl"))
+                    matches = sorted(task_dir.glob(f"{short}_{approach_for_glob}_*.jsonl"))
                     if matches:
                         latest = matches[-1]
                         rows = []
@@ -1178,6 +1259,12 @@ def build_parser() -> argparse.ArgumentParser:
                     help="DC-Cumulative batch size: questions per curator update. "
                          "Use 1 for per-question curation (good for cheatsheet "
                          "auditing with small sample counts). Default: 32")
+    p.add_argument("--self_consistency", action="store_true",
+                    help="Enable self-consistency: resample k times and majority vote. "
+                         "Only for 'default' approach; ignored for DC-Cumulative.")
+    p.add_argument("--self_consistency_k", type=int, default=5,
+                    help="Number of samples for self-consistency majority vote (default: 5). "
+                         "Requires --self_consistency. Use temperature > 0 for diversity.")
     # Internal flags for worker subprocesses
     p.add_argument("--_worker", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--_gpu", type=int, default=None, help=argparse.SUPPRESS)
@@ -1218,7 +1305,7 @@ def main():
     total_runs = len(models) * len(approaches) * len(datasets)
     skip_count = sum(
         1 for m in models for a in approaches for d in datasets
-        if run_key(m, a, d) in completed
+        if run_key(m, _approach_key(a, args), d) in completed
     )
 
     use_parallel = (
@@ -1243,6 +1330,8 @@ def main():
     log.info(f"  Max tokens: {args.max_tokens}   Temperature: {args.temperature}")
     log.info(f"  Max rounds: {args.max_num_rounds}   Code exec: {not args.no_code_execution}")
     log.info(f"  Samples:    {'all' if args.max_samples <= 0 else args.max_samples}")
+    if getattr(args, "self_consistency", False):
+        log.info(f"  Self-consistency: k={getattr(args, 'self_consistency_k', 5)} (default only)")
     log.info(f"  Total runs: {total_runs}  (skipping {skip_count} already completed)")
     if args._worker:
         log.info(f"  Worker mode: GPU {args._gpu}")

@@ -94,6 +94,18 @@ python run_all_evaluations.py \
     --quantization 8bit \
     --resume
 
+# --- Self-consistency: k=5 samples, majority vote (default approach only) ---
+#     Use temperature > 0 for diversity (e.g. 0.7). Ignored for DC-Cumulative.
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches default \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples 50 \
+    --quantization 4bit \
+    --self_consistency \
+    --self_consistency_k 5 \
+    --temperature 0.7
+
 
 # =============================================================================
 #  Cheatsheet audits (diagnostic snapshots for DynamicCheatsheet runs)
@@ -146,6 +158,32 @@ python run_multi_agent_eval.py \
     --quantization 4bit \
     --dc_batch_size 1 \
     --cheatsheet_verbose
+
+
+# =============================================================================
+#  run_dc_rs_eval.py  (DC-RS: Retrieval & Synthesis from paper)
+#  Paper: https://arxiv.org/abs/2504.07952
+#  Requires: pip install sentence-transformers
+# =============================================================================
+#
+#  DC-RS refines memory BEFORE generation using retrieved past (input, output) pairs.
+#  Per question: retrieve top-k similar past pairs -> curator synthesizes -> generate.
+
+# --- DC-RS quick test (50 samples, k=3) ---
+python run_dc_rs_eval.py \
+    --models Qwen/Qwen2.5-7B-Instruct \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples 50 \
+    --quantization 4bit \
+    --retrieve_top_k 3
+
+# --- DC-RS with more retrieval (k=5) ---
+python run_dc_rs_eval.py \
+    --models Qwen/Qwen2.5-7B-Instruct \
+    --datasets GSM8K \
+    --max_samples 100 \
+    --retrieve_top_k 5 \
+    --quantization 4bit
 
 
 # =============================================================================
@@ -244,6 +282,9 @@ python run_multi_agent_eval.py \
 #    --cheatsheet_verbose  Save cheatsheet audit snapshots to <save_dir>/cheatsheet_audit/
 #    --dc_batch_size   DC-Cumulative: questions per curator update (default: 32).
 #                      Use 1 for per-question curation (good for auditing).
+#    --self_consistency   Resample k times and majority vote (default approach only).
+#    --self_consistency_k Number of samples for majority vote (default: 5).
+#                         Use --temperature 0.7 for diversity.
 #
 #  run_multi_agent_eval.py:
 #    --approaches      MultiGenerator | MultiGenerator_Cumulative

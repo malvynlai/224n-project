@@ -1,0 +1,6 @@
+# Cheatsheet after Q22
+# Correct: True  |  Answer: 240  |  Target: 240
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

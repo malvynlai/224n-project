@@ -1,6 +1,0 @@
-# Cheatsheet after Q13
-# Correct: True  |  Answer: 5600  |  Target: 5600
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)
