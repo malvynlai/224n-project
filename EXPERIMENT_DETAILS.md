@@ -1,6 +1,6 @@
 # Experiment Details
 
-This document records every configurable detail for each experiment type. **Four experiment types** (Baseline, Multi-Agent, Self-Consistency, DC-RS); more may be added.
+This document records every configurable detail for each experiment type. **Five experiment types** (Baseline, Multi-Agent, Self-Consistency, DC-RS, Multi-Agent DC-RS); more may be added.
 
 ---
 
@@ -132,6 +132,35 @@ This document records every configurable detail for each experiment type. **Four
 
 ### Output
 - `results_dc_rs/{dataset}/{model}_DynamicCheatsheet_RetrievalSynthesis_{timestamp}.jsonl`
+
+---
+
+## Experiment 5: Multi-Agent DC-RS
+
+**Script:** `run_multi_agent_dc_rs_eval.py`  
+**Paper:** [Dynamic Cheatsheet: Test-Time Learning with Adaptive Memory](https://arxiv.org/abs/2504.07952)
+
+Combines multi-agent (3 generators + 1 curator, majority vote) with DC-RS (retrieve → curate before generation → generate).
+
+### Flow (per question i)
+1. **Retrieve:** Top-k similar past (input, output) pairs via embeddings.
+2. **Curate:** Curator synthesizes cheatsheet from retrieved pairs (before generation).
+3. **Generate:** All 3 generators answer with updated cheatsheet.
+4. **Majority vote** for final answer.
+5. Update retrieval history (shared: majority-voted representative output; separate: per-generator outputs).
+
+### Shared vs Separate Memory
+- **Shared (default):** One cheatsheet, one retrieval history (representative = winning generator's full output).
+- **Separate (`--no_shared_memory`):** Three cheatsheets, three retrieval histories; each curator updates from its own generator's outputs.
+
+### Parameters
+- **Retrieve top-k** (`--retrieve_top_k`): 3 (default).
+- **Embedding model:** sentence-transformers/all-MiniLM-L6-v2.
+- **Curator prompt:** `prompts/curator_prompt_for_dc_retrieval_synthesis.txt`.
+
+### Output
+- Shared: `results_multi_agent_dc_rs/{dataset}/{gen_tag}__{cur_tag}_MultiGenerator_DCRS_{timestamp}.jsonl`
+- Separate: `*_MultiGenerator_DCRS_SepMem_*.jsonl`
 
 ---
 

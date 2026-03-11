@@ -187,6 +187,37 @@ python run_dc_rs_eval.py \
 
 
 # =============================================================================
+#  run_multi_agent_dc_rs_eval.py  (Multi-agent DC-RS: 3 generators + curator)
+#  Combines multi-agent (majority vote) with DC-RS (retrieve -> curate -> generate)
+#  Requires: pip install sentence-transformers
+# =============================================================================
+
+# --- Multi-agent DC-RS quick test ---
+python run_multi_agent_dc_rs_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples 20 \
+    --quantization 4bit \
+    --retrieve_top_k 3
+
+# --- Multi-agent DC-RS with separate memory (3 cheatsheets) ---
+python run_multi_agent_dc_rs_eval.py \
+    --backend vllm \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --no_shared_memory \
+    --resume
+
+# --- Full run, all default datasets ---
+python run_multi_agent_dc_rs_eval.py \
+    --backend vllm \
+    --max_samples -1 \
+    --quantization 4bit \
+    --resume
+
+
+# =============================================================================
 #  run_multi_agent_eval.py  (3 generators + Qwen-14B curator)
 #  Generators: Qwen2.5-7B, Qwen2.5-14B, Mistral-7B
 #  Curator:    Qwen2.5-14B
@@ -312,6 +343,11 @@ python run_multi_agent_eval.py \
 #    --cheatsheet_verbose  Save cheatsheet audit snapshots (MultiGenerator_Cumulative only)
 #    --dc_batch_size   MultiGenerator_Cumulative: questions per curator update (default: 32).
 #                      Use 1 for per-question curation (good for auditing).
+#
+#  run_multi_agent_dc_rs_eval.py:
+#    Same as run_multi_agent_eval (--backend, --quantization, --datasets, etc.)
+#    plus --retrieve_top_k (default: 3), --no_shared_memory, --cheatsheet_verbose.
+#    Output: results_multi_agent_dc_rs/*_MultiGenerator_DCRS_*.jsonl
 #
 #  Available datasets:
 #    AIME_2024, AIME_2025, AIME_2020_2024, GPQA_Diamond,
