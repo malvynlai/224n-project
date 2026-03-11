@@ -1,0 +1,6 @@
+# Cheatsheet after Q23
+# Correct: False  |  Answer: 16.3  |  Target: 16
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

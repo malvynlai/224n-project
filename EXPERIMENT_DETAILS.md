@@ -69,6 +69,10 @@ This document records every configurable detail for each experiment type. **Four
 1. **MultiGenerator** — 3 generators, majority vote, no cheatsheet.
 2. **MultiGenerator_Cumulative** — 3 generators, majority vote, + evolving cheatsheet.
 
+### Shared vs Separate Memory (MultiGenerator_Cumulative only)
+- **Shared memory (default):** One cheatsheet shared by all 3 generators; curator uses majority-voted answers.
+- **Separate memory (`--no_shared_memory`):** Three cheatsheets, one per generator; each curator updates from its own generator's outputs; then majority vote. Output: `*_MultiGenerator_Cumulative_SepMem_*.jsonl`.
+
 ### Prompting Procedure
 1. **Per question:** Format as `Question #N:\n{raw_input}` + task-specific suffix (AIME integer format, GSM8K number format, etc.).
 2. **Generator prompt:** `prompts/generator_prompt.txt` — `[[QUESTION]]` + `[[CHEATSHEET]]`.
@@ -83,7 +87,8 @@ This document records every configurable detail for each experiment type. **Four
 5. **Flow per batch:** (1) Each generator batch-generates for batch; (2) Majority vote per question; (3) Curator runs in sub-batches of 8; (4) Update cheatsheet; (5) Checkpoint.
 
 ### Output
-- `results_multi_agent/{dataset}/{gen_tag}__{cur_tag}_MultiGenerator_Cumulative_{timestamp}.jsonl`
+- Shared memory: `results_multi_agent/{dataset}/{gen_tag}__{cur_tag}_MultiGenerator_Cumulative_{timestamp}.jsonl`
+- Separate memory: `results_multi_agent/{dataset}/{gen_tag}__{cur_tag}_MultiGenerator_Cumulative_SepMem_{timestamp}.jsonl`
 
 ---
 

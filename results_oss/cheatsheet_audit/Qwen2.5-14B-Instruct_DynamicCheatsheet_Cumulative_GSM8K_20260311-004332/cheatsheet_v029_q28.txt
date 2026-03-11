@@ -1,0 +1,6 @@
+# Cheatsheet after Q29
+# Correct: True  |  Answer: 450  |  Target: 450
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

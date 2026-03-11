@@ -1,0 +1,6 @@
+# Cheatsheet after Q18
+# Correct: True  |  Answer: 448  |  Target: 448
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

@@ -1,0 +1,6 @@
+# Cheatsheet after Q26
+# Correct: False  |  Answer: 30  |  Target: 45
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

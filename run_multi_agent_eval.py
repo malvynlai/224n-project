@@ -260,10 +260,11 @@ def evaluate_answer(task: str, input_txt: str, answer: str, target: str) -> bool
 # Resume support
 # ─────────────────────────────────────────────────────────────────────
 
-def run_key(approach: str, task: str) -> str:
+def run_key(approach: str, task: str, shared_memory: bool = True) -> str:
     gen_short = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
     cur_short = CURATOR_MODEL.split("/")[-1]
-    return f"{gen_short}__{cur_short}__{approach}__{task}"
+    suffix = approach if (shared_memory or approach != "MultiGenerator_Cumulative") else "MultiGenerator_Cumulative_SepMem"
+    return f"{gen_short}__{cur_short}__{suffix}__{task}"
 
 
 def find_completed_runs(save_dir: str) -> set:
@@ -277,11 +278,12 @@ def find_completed_runs(save_dir: str) -> set:
                 continue
             name_part = parts[0]
             for approach in ALL_APPROACHES:
-                if f"_{approach}_" in f:
+                if f"_{approach}_" in f or (approach == "MultiGenerator_Cumulative" and "_MultiGenerator_Cumulative_SepMem_" in f):
                     for dataset in ALL_DATASETS:
                         if f.startswith(dataset) or f"/{dataset}/" in os.path.join(root, f):
                             task = os.path.basename(root)
-                            key = run_key(approach, task)
+                            shared = approach != "MultiGenerator_Cumulative" or "_MultiGenerator_Cumulative_SepMem_" not in f
+                            key = run_key(approach, task, shared_memory=shared)
                             fp = os.path.join(root, f)
                             try:
                                 with open(fp) as fh:
@@ -575,10 +577,11 @@ def run_multi_generator_batched(
 # Batched MultiGenerator_Cumulative (vLLM)
 # ─────────────────────────────────────────────────────────────────────
 
-def _ckpt_path_mg_cu(save_dir: str, task: str) -> str:
+def _ckpt_path_mg_cu(save_dir: str, task: str, shared_memory: bool = True) -> str:
     gen_tag = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
     cur_tag = CURATOR_MODEL.split("/")[-1]
-    return os.path.join(save_dir, task, f".ckpt_{gen_tag}__{cur_tag}_MultiGenerator_Cumulative.json")
+    suffix = "MultiGenerator_Cumulative" if shared_memory else "MultiGenerator_Cumulative_SepMem"
+    return os.path.join(save_dir, task, f".ckpt_{gen_tag}__{cur_tag}_{suffix}.json")
 
 
 def run_multi_generator_cumulative_batched(
@@ -592,18 +595,20 @@ def run_multi_generator_cumulative_batched(
     shuffle_seed: int = 10,
     batch_size: int = 32,
     cheatsheet_verbose: bool = False,
+    shared_memory: bool = True,
 ) -> Dict:
     """
     Batched MultiGenerator_Cumulative for vLLM.
 
-    Per mini-batch of `batch_size` questions:
-      1. For each generator: batch all questions with the current cheatsheet (1 vLLM call each)
-      2. Majority-vote across generators per question
-      3. Consolidate all Q&A pairs into a single curator prompt          (1 vLLM call)
-    Total LLM calls per batch: len(GENERATOR_MODELS) + 1
-    Total overall: (len(GENERATOR_MODELS) + 1) * ceil(N / batch_size)
+    shared_memory=True (default): One cheatsheet shared by all 3 generators; curator
+        uses majority-voted answers.
+    shared_memory=False: 3 separate cheatsheets; each generator curates from its own
+        outputs; then majority vote. Effectively runs DC-Cu 3 times in parallel.
 
-    Checkpoints after every batch so runs can resume after interruption.
+    Per mini-batch of `batch_size` questions:
+      1. For each generator: batch all questions with (shared or per-gen) cheatsheet
+      2. Majority-vote across generators per question
+      3. Curator(s): 1 call if shared, len(GENERATOR_MODELS) calls if separate
     """
     from collections import Counter as _Counter
 
@@ -626,22 +631,27 @@ def run_multi_generator_cumulative_batched(
     gen_short = "+".join(m.split("/")[-1].split("-Instruct")[0] for m in GENERATOR_MODELS)
     t0 = time.time()
 
-    cheatsheet = "(empty)"
+    cheatsheet = "(empty)" if shared_memory else None
+    cheatsheets = None if shared_memory else ["(empty)"] * len(GENERATOR_MODELS)
     outputs_list: List[dict] = []
     correct = 0
     start_batch = 0
 
     # Resume from checkpoint if available
-    ckpt_file = _ckpt_path_mg_cu(save_dir, task)
+    ckpt_file = _ckpt_path_mg_cu(save_dir, task, shared_memory)
     os.makedirs(os.path.join(save_dir, task), exist_ok=True)
     if os.path.exists(ckpt_file):
         try:
             with open(ckpt_file) as f:
                 ckpt = json.load(f)
             if (ckpt.get("n") == n and ckpt.get("batch_size") == batch_size
-                    and ckpt.get("shuffle_seed") == shuffle_seed):
+                    and ckpt.get("shuffle_seed") == shuffle_seed
+                    and ckpt.get("shared_memory") == shared_memory):
                 start_batch = ckpt["next_batch"]
-                cheatsheet = ckpt["cheatsheet"]
+                if shared_memory:
+                    cheatsheet = ckpt["cheatsheet"]
+                else:
+                    cheatsheets = ckpt["cheatsheets"]
                 outputs_list = ckpt["outputs"]
                 correct = ckpt["correct"]
                 log.info(f"  Resuming from checkpoint: batch {start_batch+1} "
@@ -658,31 +668,51 @@ def run_multi_generator_cumulative_batched(
         batch_end = min(batch_start + batch_size, n)
         k = batch_end - batch_start
 
-        # Phase 1: format prompts for this batch (shared cheatsheet)
+        # Phase 1: format prompts for this batch
         batch_raw_inputs = []
         batch_input_txts = []
         batch_targets = []
-        histories = []
-        for idx in range(batch_start, batch_end):
-            example = dataset[idx]
-            raw_input = example["input"]
-            target = example["target"]
-            input_txt = format_input(task, raw_input, idx)
-            prompt = GENERATOR_PROMPT.replace(
-                "[[QUESTION]]", input_txt
-            ).replace("[[CHEATSHEET]]", cheatsheet)
-            histories.append([{"role": "user", "content": prompt}])
-            batch_raw_inputs.append(raw_input)
-            batch_input_txts.append(input_txt)
-            batch_targets.append(target)
+        if shared_memory:
+            histories = []
+            for idx in range(batch_start, batch_end):
+                example = dataset[idx]
+                raw_input = example["input"]
+                target = example["target"]
+                input_txt = format_input(task, raw_input, idx)
+                prompt = GENERATOR_PROMPT.replace(
+                    "[[QUESTION]]", input_txt
+                ).replace("[[CHEATSHEET]]", cheatsheet)
+                histories.append([{"role": "user", "content": prompt}])
+                batch_raw_inputs.append(raw_input)
+                batch_input_txts.append(input_txt)
+                batch_targets.append(target)
+            histories_per_gen = [histories] * len(GENERATOR_MODELS)
+        else:
+            histories_per_gen = []
+            for g in range(len(GENERATOR_MODELS)):
+                h = []
+                for idx in range(batch_start, batch_end):
+                    example = dataset[idx]
+                    raw_input = example["input"]
+                    target = example["target"]
+                    input_txt = format_input(task, raw_input, idx)
+                    prompt = GENERATOR_PROMPT.replace(
+                        "[[QUESTION]]", input_txt
+                    ).replace("[[CHEATSHEET]]", cheatsheets[g])
+                    h.append([{"role": "user", "content": prompt}])
+                    if g == 0:
+                        batch_raw_inputs.append(raw_input)
+                        batch_input_txts.append(input_txt)
+                        batch_targets.append(target)
+                histories_per_gen.append(h)
 
         # Phase 2: batch-generate per generator (1 vLLM call per generator)
         per_gen_outputs: Dict[str, List[str]] = {}
-        for gen_name in GENERATOR_MODELS:
+        for gi, gen_name in enumerate(GENERATOR_MODELS):
             short_gen = gen_name.split("/")[-1]
             log.info(f"  Batch {b+1}/{num_batches}: {short_gen} generating {k} answers...")
             gen_out = model.batch_generate_with_model(
-                histories, gen_name, temperature=temperature, max_tokens=max_tokens,
+                histories_per_gen[gi], gen_name, temperature=temperature, max_tokens=max_tokens,
             )
             per_gen_outputs[gen_name] = gen_out
 
@@ -712,6 +742,7 @@ def run_multi_generator_cumulative_batched(
             if is_correct:
                 correct += 1
 
+            _cs = cheatsheet if shared_memory else cheatsheets[0]
             outputs_list.append({
                 "input": batch_input_txts[i],
                 "target": batch_targets[i],
@@ -719,7 +750,7 @@ def run_multi_generator_cumulative_batched(
                 "steps": gen_steps,
                 "all_generator_answers": gen_answers,
                 "final_answer": final_answer,
-                "final_cheatsheet": cheatsheet,
+                "final_cheatsheet": _cs,
                 "final_output": combined_outputs,
                 "is_correct": is_correct,
             })
@@ -728,7 +759,7 @@ def run_multi_generator_cumulative_batched(
                 auditor.record(
                     question_idx=batch_start + i,
                     question_text=batch_input_txts[i],
-                    cheatsheet=cheatsheet,
+                    cheatsheet=_cs,
                     generator_output=combined_outputs,
                     final_answer=final_answer,
                     target=batch_targets[i],
@@ -741,53 +772,92 @@ def run_multi_generator_cumulative_batched(
                 correct=f"{correct}/{batch_start+i+1}",
             )
 
-        # Phase 4: run curator in sub-batches of 8 (4 curator calls for batch_size=32)
+        # Phase 4: run curator in sub-batches of 8
         CURATOR_SUB_BATCH_SIZE = 8
-        curator_cheatsheet = cheatsheet
-        for sub_start in range(0, k, CURATOR_SUB_BATCH_SIZE):
-            sub_end = min(sub_start + CURATOR_SUB_BATCH_SIZE, k)
-            sub_k = sub_end - sub_start
-            qa_entries = [
-                (
-                    f"### Question {batch_start + sub_start + i + 1}\n{batch_input_txts[sub_start + i]}\n\n"
-                    f"### Majority-Voted Answer {batch_start + sub_start + i + 1}\n{outputs_list[-(k - (sub_start + i))]['final_answer']}\n\n---\n\n"
+        if shared_memory:
+            curator_cheatsheet = cheatsheet
+            for sub_start in range(0, k, CURATOR_SUB_BATCH_SIZE):
+                sub_end = min(sub_start + CURATOR_SUB_BATCH_SIZE, k)
+                sub_k = sub_end - sub_start
+                qa_entries = [
+                    (
+                        f"### Question {batch_start + sub_start + i + 1}\n{batch_input_txts[sub_start + i]}\n\n"
+                        f"### Majority-Voted Answer {batch_start + sub_start + i + 1}\n{outputs_list[-(k - (sub_start + i))]['final_answer']}\n\n---\n\n"
+                    )
+                    for i in range(sub_k)
+                ]
+                manager = getattr(model, "local_manager", None)
+                if manager is not None:
+                    curator_prompt = build_curator_prompt_within_limit(
+                        manager, CURATOR_MODEL, CURATOR_PROMPT, curator_cheatsheet, qa_entries, batch_size=sub_k,
+                    )
+                else:
+                    curator_shell = CURATOR_PROMPT.replace(
+                        "[[PREVIOUS_CHEATSHEET]]", curator_cheatsheet
+                    ).replace("[[QUESTION]]", f"(Batch of {sub_k} questions — see below)")
+                    qa_section = "".join(qa_entries)
+                    curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
+                curator_history = [{"role": "user", "content": curator_prompt}]
+                log.info(f"  Batch {b+1}/{num_batches}: curating shared cheatsheet from {sub_k} Q&A pairs (sub-batch {sub_start//CURATOR_SUB_BATCH_SIZE + 1}/{(k + CURATOR_SUB_BATCH_SIZE - 1)//CURATOR_SUB_BATCH_SIZE})...")
+                curator_output = model.generate(
+                    history=curator_history,
+                    temperature=temperature,
+                    max_tokens=2 * max_tokens,
+                    allow_code_execution=False,
                 )
-                for i in range(sub_k)
-            ]
-
-            manager = getattr(model, "local_manager", None)
-            if manager is not None:
-                curator_prompt = build_curator_prompt_within_limit(
-                    manager, CURATOR_MODEL, CURATOR_PROMPT, curator_cheatsheet, qa_entries, batch_size=sub_k,
-                )
-            else:
-                curator_shell = CURATOR_PROMPT.replace(
-                    "[[PREVIOUS_CHEATSHEET]]", curator_cheatsheet
-                ).replace("[[QUESTION]]", f"(Batch of {sub_k} questions — see below)")
-                qa_section = "".join(qa_entries)
-                curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
-            curator_history = [{"role": "user", "content": curator_prompt}]
-            log.info(f"  Batch {b+1}/{num_batches}: curating cheatsheet from {sub_k} Q&A pairs (sub-batch {sub_start//CURATOR_SUB_BATCH_SIZE + 1}/{(k + CURATOR_SUB_BATCH_SIZE - 1)//CURATOR_SUB_BATCH_SIZE})...")
-            curator_output = model.generate(
-                history=curator_history,
-                temperature=temperature,
-                max_tokens=2 * max_tokens,
-                allow_code_execution=False,
-            )
-            curator_cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, curator_cheatsheet))
-        cheatsheet = curator_cheatsheet
-        outputs_list[-1]["final_cheatsheet"] = cheatsheet
+                curator_cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, curator_cheatsheet))
+            cheatsheet = curator_cheatsheet
+        else:
+            # Separate memory: per-generator curator runs
+            for gi in range(len(GENERATOR_MODELS)):
+                gen_name = GENERATOR_MODELS[gi]
+                curator_cs = cheatsheets[gi]
+                for sub_start in range(0, k, CURATOR_SUB_BATCH_SIZE):
+                    sub_end = min(sub_start + CURATOR_SUB_BATCH_SIZE, k)
+                    sub_k = sub_end - sub_start
+                    qa_entries = [
+                        (
+                            f"### Question {batch_start + sub_start + i + 1}\n{batch_input_txts[sub_start + i]}\n\n"
+                            f"### Model Answer {batch_start + sub_start + i + 1}\n{per_gen_outputs[gen_name][sub_start + i]}\n\n---\n\n"
+                        )
+                        for i in range(sub_k)
+                    ]
+                    manager = getattr(model, "local_manager", None)
+                    if manager is not None:
+                        curator_prompt = build_curator_prompt_within_limit(
+                            manager, CURATOR_MODEL, CURATOR_PROMPT, curator_cs, qa_entries, batch_size=sub_k,
+                        )
+                    else:
+                        curator_shell = CURATOR_PROMPT.replace(
+                            "[[PREVIOUS_CHEATSHEET]]", curator_cs
+                        ).replace("[[QUESTION]]", f"(Batch of {sub_k} questions — see below)")
+                        qa_section = "".join(qa_entries)
+                        curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
+                    curator_history = [{"role": "user", "content": curator_prompt}]
+                    short_gen = gen_name.split("/")[-1]
+                    log.info(f"  Batch {b+1}/{num_batches}: curating {short_gen} cheatsheet from {sub_k} Q&A pairs...")
+                    curator_output = model.generate(
+                        history=curator_history,
+                        temperature=temperature,
+                        max_tokens=2 * max_tokens,
+                        allow_code_execution=False,
+                    )
+                    curator_cs = cap_cheatsheet(extract_cheatsheet(curator_output, curator_cs))
+                cheatsheets[gi] = curator_cs
+        outputs_list[-1]["final_cheatsheet"] = cheatsheet if shared_memory else cheatsheets[0]
 
         # Checkpoint after every batch
         ckpt_data = {
             "next_batch": b + 1,
-            "cheatsheet": cheatsheet,
+            "cheatsheet": cheatsheet if shared_memory else None,
+            "cheatsheets": cheatsheets if not shared_memory else None,
             "outputs": outputs_list,
             "correct": correct,
             "n": n,
             "batch_size": batch_size,
             "shuffle_seed": shuffle_seed,
             "task": task,
+            "shared_memory": shared_memory,
         }
         with open(ckpt_file, "w") as f:
             json.dump(ckpt_data, f, default=str)
@@ -800,7 +870,8 @@ def run_multi_generator_cumulative_batched(
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     gen_tag = "+".join(m.split("/")[-1] for m in GENERATOR_MODELS)
     cur_tag = CURATOR_MODEL.split("/")[-1]
-    fname = f"{gen_tag}__{cur_tag}_MultiGenerator_Cumulative_{ts}.jsonl"
+    approach_suffix = "MultiGenerator_Cumulative" if shared_memory else "MultiGenerator_Cumulative_SepMem"
+    fname = f"{gen_tag}__{cur_tag}_{approach_suffix}_{ts}.jsonl"
     out_dir = os.path.join(save_dir, task)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, fname)
@@ -863,6 +934,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="DC-Cumulative batch size: questions per curator update. "
                          "Use 1 for per-question curation (good for cheatsheet "
                          "auditing with small sample counts). Default: 32")
+    p.add_argument("--no_shared_memory", action="store_true",
+                    help="Use 3 separate cheatsheets (one per generator) instead of "
+                         "one shared cheatsheet. Each generator curates its own memory "
+                         "from its own outputs; then majority vote.")
     return p
 
 
@@ -889,10 +964,10 @@ def main():
         gpu_info = "torch not installed"
 
     total_runs = len(approaches) * len(datasets)
-    skip_count = sum(
-        1 for a in approaches for d in datasets
-        if run_key(a, d) in completed
-    )
+    shared_mem = not getattr(args, "no_shared_memory", False)
+    def _key(a: str, d: str):
+        return run_key(a, d, shared_memory=shared_mem if a == "MultiGenerator_Cumulative" else True)
+    skip_count = sum(1 for a in approaches for d in datasets if _key(a, d) in completed)
 
     log.info("=" * 72)
     log.info("  Multi-Agent Evaluation")
@@ -905,6 +980,7 @@ def main():
         log.info(f"    - {m}")
     log.info(f"  Curator:      {CURATOR_MODEL}")
     log.info(f"  Approaches:   {approaches}")
+    log.info(f"  Shared mem:   {shared_mem} (--no_shared_memory={not shared_mem})")
     log.info(f"  Datasets ({len(datasets)}): {datasets}")
     log.info(f"  Max tokens:   {args.max_tokens}   Temperature: {args.temperature}")
     log.info(f"  Max rounds:   {args.max_num_rounds}   Code exec: {not args.no_code_execution}")
@@ -933,7 +1009,7 @@ def main():
 
     for task in datasets:
         for approach in approaches:
-            key = run_key(approach, task)
+            key = _key(approach, task)
             if key in completed:
                 log.info(f"\n  SKIP (already done): {approach} | {task}")
                 continue
@@ -961,6 +1037,7 @@ def main():
                         save_dir=args.save_dir,
                         batch_size=getattr(args, 'dc_batch_size', 32),
                         cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
+                        shared_memory=shared_mem,
                     )
                 else:
                     summary = run_single(

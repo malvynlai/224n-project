@@ -226,6 +226,16 @@ python run_multi_agent_eval.py \
     --quantization 4bit \
     --resume
 
+# --- MultiGenerator_Cumulative with separate memory (3 cheatsheets, one per generator) ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --approaches MultiGenerator_Cumulative \
+    --datasets GSM8K MMLU_Pro_Engineering \
+    --max_samples -1 \
+    --quantization 4bit \
+    --no_shared_memory \
+    --resume
+
 # --- Full run, all datasets, both approaches ---
 python run_multi_agent_eval.py \
     --backend vllm \
@@ -288,6 +298,7 @@ python run_multi_agent_eval.py \
 #
 #  run_multi_agent_eval.py:
 #    --approaches      MultiGenerator | MultiGenerator_Cumulative
+#    --no_shared_memory  (MultiGenerator_Cumulative only) Use 3 separate cheatsheets, one per generator
 #    --datasets        Dataset names (default: all)
 #    --backend         hf | vllm
 #    --quantization    none | 4bit | 8bit
