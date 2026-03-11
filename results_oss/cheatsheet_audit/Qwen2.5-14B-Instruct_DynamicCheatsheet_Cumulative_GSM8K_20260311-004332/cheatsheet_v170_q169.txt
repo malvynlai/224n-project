@@ -1,0 +1,194 @@
+# Cheatsheet after Q170
+# Correct: True  |  Answer: 63  |  Target: 63
+# Tokens: ~911  |  Memory items: 8
+# ======================================================================
+
+Version: 18.0
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+
+<memory_item>
+<description>
+Calculate the earnings if Jordan worked instead of playing video games for 2 hours every day for a week, given he earns $10 an hour. (Reference: Q153)
+</description>
+<example>
+```python
+# Constants
+hours_per_day_playing_games = 2
+days_per_week = 7
+hourly_wage = 10
+
+# Total hours worked in a week
+total_hours_worked = hours_per_day_playing_games * days_per_week
+
+# Total earnings
+total_earnings = total_hours_worked * hourly_wage
+total_earnings
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Determine Colin's current age given Wendy is five times as old as Colin will be seven years from now, and in 25 years, Colin will be a third as old as Wendy is now. (Reference: Q154)
+</description>
+<example>
+```python
+# Define variables
+C = 10  # Colin's current age
+W = 5 * (C + 7)  # Wendy's current age
+
+# Check the second condition
+if C + 25 == W / 3:
+    print(C)
+else:
+    # Adjust Colin's age to satisfy both conditions
+    C = (W / 3 - 25) * 3
+    print(C)
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate the total number of pairs of legs from 10 2-legged animals and 15 4-legged animals on a farm. (Reference: Q155)
+</description>
+<example>
+```python
+# Number of 2-legged animals
+two_legged_animals = 10
+# Number of 4-legged animals
+four_legged_animals = 15
+
+# Total legs from 2-legged animals
+legs_two_legged = two_legged_animals * 2
+# Total legs from 4-legged animals
+legs_four_legged = four_legged_animals * 4
+
+# Total legs
+total_legs = legs_two_legged + legs_four_legged
+# Total pairs of legs
+total_pairs_of_legs = total_legs / 2
+total_pairs_of_legs
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate John's weekly earnings if he does 30 cycles of work a day, each cycle has 5 tasks, and each task pays $1.20. (Reference: Q156)
+</description>
+<example>
+```python
+# Constants
+cycles_per_day = 30
+tasks_per_cycle = 5
+payment_per_task = 1.20
+days_per_week = 7
+
+# Daily earnings
+daily_earnings = cycles_per_day * tasks_per_cycle * payment_per_task
+
+# Weekly earnings
+weekly_earnings = daily_earnings * days_per_week
+weekly_earnings
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate how many more boxes of cereal Castle bought this week compared to last week, given she bought 3 boxes of Coco Crunch and 5 boxes of Fruit Loops this week, and 4 boxes last week. (Reference: Q157)
+</description>
+<example>
+```python
+# Boxes bought this week
+boxes_this_week = 3 + 5
+# Boxes bought last week
+boxes_last_week = 4
+
+# Difference in boxes bought
+difference_boxes = boxes_this_week - boxes_last_week
+difference_boxes
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate Amy's total score on a history test, given she correctly answers 80% of 10 multiple-choice questions, 90% of 20 true/false questions, and 60% of 5 long-answer questions, with multiple-choice and true/false questions worth 1 point each and long-answer questions worth 5 points each. (Reference: Q158)
+</description>
+<example>
+```python
+# Constants
+mc_questions = 10
+tf_questions = 20
+la_questions = 5
+mc_correct_percentage = 0.80
+tf_correct_percentage = 0.90
+la_correct_percentage = 0.60
+mc_points = 1
+tf_points = 1
+la_points = 5
+
+# Correctly answered questions
+mc_correct = mc_questions * mc_correct_percentage
+tf_correct = tf_questions * tf_correct_percentage
+la_correct = la_questions * la_correct_percentage
+
+# Total points
+total_points = (mc_correct * mc_points) + (tf_correct * tf_points) + (la_correct * la_points)
+total_points
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate the number of stitches each sleeve takes in Terri's sweater, given the body takes 900 stitches, the collar takes a tenth of that, and the rosette takes twice as many as the collar, with the whole sweater being an 1800-stitch project. (Reference: Q159)
+</description>
+<example>
+```python
+# Constants
+body_stitches = 900
+collar_stitches = body_stitches / 10
+rosette_stitches = collar_stitches * 2
+total_stitches = 1800
+
+# Total stitches for body, collar, and rosette
+total_body_collar_rosette = body_stitches + collar_stitches + rosette_stitches
+
+# Stitches for sleeves
+sleeve_stitches = (total_stitches - total_body_collar_rosette) / 2
+sleeve_stitches
+```
+**Count: 1**
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+Calculate the total time Sandy walked in minutes over two days, given she walked 8 hours on the first day and half as many hours on the second day. (Reference: Q160)
+</description>
+<example>
+```python
+# Constants
+hours_first_day = 8
+hours_second_day = hours_first_day / 2
+
+# Total hours walked
+total_hours_walked = hours_first_day + hours_second_day
+
+# Convert hours to minutes
+total_minutes_walked = total_hours_walked * 60
+total_minutes_walked
+```
+**Count: 1**
+</example>
+</memory_item>

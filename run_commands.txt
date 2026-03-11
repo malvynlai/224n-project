@@ -163,7 +163,7 @@ python run_multi_agent_eval.py \
 # =============================================================================
 #  run_dc_rs_eval.py  (DC-RS: Retrieval & Synthesis from paper)
 #  Paper: https://arxiv.org/abs/2504.07952
-#  Requires: pip install sentence-transformers
+#  Uses embeddings/{task}.csv when available; else pip install sentence-transformers
 # =============================================================================
 #
 #  DC-RS refines memory BEFORE generation using retrieved past (input, output) pairs.
@@ -189,7 +189,7 @@ python run_dc_rs_eval.py \
 # =============================================================================
 #  run_multi_agent_dc_rs_eval.py  (Multi-agent DC-RS: 3 generators + curator)
 #  Combines multi-agent (majority vote) with DC-RS (retrieve -> curate -> generate)
-#  Requires: pip install sentence-transformers
+#  Uses embeddings/{task}.csv when available; else pip install sentence-transformers
 # =============================================================================
 
 # --- Multi-agent DC-RS quick test ---

@@ -14,7 +14,8 @@ DC-RS flow (per question i):
 Unlike DC-Cu (Cumulative), DC-RS refines memory BEFORE responding and uses retrieval to surface
 relevant past examples. This helps on diverse benchmarks (e.g. GPQA-Diamond).
 
-Requires: sentence-transformers (pip install sentence-transformers)
+Uses pre-computed embeddings from embeddings/{task}.csv when available; falls back to
+sentence-transformers (pip install sentence-transformers) for datasets without embeddings.
 
 Usage:
   python run_dc_rs_eval.py --models Qwen/Qwen2.5-7B-Instruct --datasets GSM8K --max_samples 50
@@ -24,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import logging
 import os
@@ -172,21 +174,45 @@ def evaluate_one(task: str, raw_input: str, answer: str, target: str) -> bool:
 # Embedding & retrieval (DC-RS)
 # ─────────────────────────────────────────────────────────────────────
 
+EMBEDDINGS_DIR = "embeddings"
+
+
+def load_precomputed_embeddings(task: str, dataset_size: int) -> Optional[np.ndarray]:
+    """
+    Load pre-computed embeddings from embeddings/{task}.csv.
+    Returns (dataset_size, dim) array or None if file missing/invalid.
+    CSV columns: input, tokens, embedding (embedding is string repr of list of floats).
+    """
+    path = os.path.join(EMBEDDINGS_DIR, f"{task}.csv")
+    if not os.path.exists(path):
+        return None
+    try:
+        import csv
+        rows = []
+        with open(path) as f:
+            for row in csv.DictReader(f):
+                emb_str = row.get("embedding", "")
+                if emb_str:
+                    rows.append(np.array(ast.literal_eval(emb_str), dtype=np.float32))
+        if len(rows) < dataset_size:
+            log.warning(f"  embeddings/{task}.csv has {len(rows)} rows, dataset has {dataset_size}; using fallback")
+            return None
+        return np.array(rows[:dataset_size])
+    except Exception as e:
+        log.warning(f"  Failed to load embeddings/{task}.csv: {e}; using fallback")
+        return None
+
+
 def get_embedder():
-    """Lazy-load sentence-transformers for embeddings."""
+    """Lazy-load sentence-transformers (fallback when pre-computed embeddings unavailable)."""
     try:
         from sentence_transformers import SentenceTransformer
         return SentenceTransformer("all-MiniLM-L6-v2")
     except ImportError:
         raise ImportError(
-            "DC-RS requires sentence-transformers for retrieval. "
-            "Install with: pip install sentence-transformers"
+            "DC-RS fallback requires sentence-transformers when embeddings/{task}.csv "
+            "is missing. Install with: pip install sentence-transformers"
         )
-
-
-def embed_texts(model, texts: List[str]) -> np.ndarray:
-    """Embed a list of texts. Returns (n, dim) array."""
-    return model.encode(texts, convert_to_numpy=True)
 
 
 def retrieve_top_k(
@@ -242,12 +268,17 @@ def run_dc_rs(
       2. Curator: M_i = Cur(M_{i-1}, x_i, R_i)
       3. Generator: y_i = Gen(x_i, M_i)
     """
-    embedder = get_embedder()
+    full_dataset = load_from_disk(f"data/{task}")
+    full_size = len(full_dataset)
+    precomputed = load_precomputed_embeddings(task, full_size)
+    embedder = None if precomputed is not None else get_embedder()
+    if precomputed is not None:
+        log.info(f"  Using pre-computed embeddings from embeddings/{task}.csv")
 
-    dataset = load_from_disk(f"data/{task}")
+    dataset = full_dataset
     rng = np.random.RandomState(shuffle_seed)
-    n = len(dataset) if max_samples <= 0 else min(max_samples, len(dataset))
-    indices = rng.choice(len(dataset), size=n, replace=False).tolist()
+    n = full_size if max_samples <= 0 else min(max_samples, full_size)
+    indices = rng.choice(full_size, size=n, replace=False).tolist()
     dataset = dataset.select(indices)
 
     generator_prompt = read_file("prompts/generator_prompt.txt")
@@ -272,8 +303,11 @@ def run_dc_rs(
         target = example["target"]
         input_txt = format_input(task, raw_input, idx)
 
-        # 1. Embed current input (before try so we have it for history update on error)
-        current_emb = embedder.encode([input_txt], convert_to_numpy=True)[0]
+        # 1. Get embedding (pre-computed or compute on the fly)
+        if precomputed is not None:
+            current_emb = precomputed[indices[idx]]
+        else:
+            current_emb = embedder.encode([input_txt], convert_to_numpy=True)[0]
 
         try:
             # 2. Retrieve top-k similar past (input, output) pairs

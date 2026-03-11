@@ -127,7 +127,7 @@ This document records every configurable detail for each experiment type. **Five
 
 ### Parameters
 - **Retrieve top-k** (`--retrieve_top_k`): 3 (default).
-- **Embedding model:** sentence-transformers/all-MiniLM-L6-v2.
+- **Embeddings:** Pre-computed from `embeddings/{task}.csv` when available; fallback to sentence-transformers/all-MiniLM-L6-v2.
 - **Curator prompt:** `prompts/curator_prompt_for_dc_retrieval_synthesis.txt`.
 
 ### Output
@@ -155,7 +155,7 @@ Combines multi-agent (3 generators + 1 curator, majority vote) with DC-RS (retri
 
 ### Parameters
 - **Retrieve top-k** (`--retrieve_top_k`): 3 (default).
-- **Embedding model:** sentence-transformers/all-MiniLM-L6-v2.
+- **Embeddings:** Pre-computed from `embeddings/{task}.csv` when available; fallback to sentence-transformers/all-MiniLM-L6-v2.
 - **Curator prompt:** `prompts/curator_prompt_for_dc_retrieval_synthesis.txt`.
 
 ### Output

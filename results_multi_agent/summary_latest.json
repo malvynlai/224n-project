@@ -13,5 +13,20 @@
     "total": 200,
     "elapsed_s": 1265.0,
     "output_path": "results_multi_agent/GSM8K/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_20260310-220341.jsonl"
+  },
+  {
+    "generators": [
+      "Qwen2.5-7B-Instruct",
+      "Qwen2.5-14B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-14B-Instruct",
+    "approach": "MultiGenerator_Cumulative",
+    "dataset": "GSM8K",
+    "accuracy": 0.87,
+    "correct": 174,
+    "total": 200,
+    "elapsed_s": 11145.5,
+    "output_path": "results_multi_agent/GSM8K/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_Cumulative_20260311-010927.jsonl"
   }
 ]
