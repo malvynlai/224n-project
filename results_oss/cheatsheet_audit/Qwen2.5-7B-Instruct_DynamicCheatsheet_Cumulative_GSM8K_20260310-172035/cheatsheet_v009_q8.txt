@@ -1,0 +1,6 @@
+# Cheatsheet after Q9
+# Correct: True  |  Answer: 129200  |  Target: 129200
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

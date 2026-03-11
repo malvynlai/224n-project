@@ -1,0 +1,6 @@
+# Cheatsheet after Q8
+# Correct: True  |  Answer: 50  |  Target: 50
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

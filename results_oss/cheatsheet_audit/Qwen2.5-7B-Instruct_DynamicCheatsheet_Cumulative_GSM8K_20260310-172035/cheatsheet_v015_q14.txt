@@ -1,0 +1,6 @@
+# Cheatsheet after Q15
+# Correct: False  |  Answer: 20  |  Target: 26
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

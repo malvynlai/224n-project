@@ -1,0 +1,98 @@
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "task": "GSM8K",
+  "approach": "DynamicCheatsheet_Cumulative",
+  "generator_model": "Qwen/Qwen2.5-14B-Instruct",
+  "curator_model": "Qwen/Qwen2.5-14B-Instruct",
+  "total_questions": 20,
+  "accuracy": 0.85,
+  "correct": 17,
+  "token_growth": {
+    "initial": 1,
+    "final": 1,
+    "max": 1,
+    "mean": 1.0,
+    "over_2k_tokens": 0,
+    "over_4k_tokens": 0,
+    "trajectory": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "memory_items": {
+    "count_trajectory": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "final_count": 0,
+    "unique_items_ever_created": 0,
+    "long_lived_items": 0,
+    "ephemeral_items": 0,
+    "top_reused_items": []
+  },
+  "reuse_analysis": {
+    "questions_with_cheatsheet": 0,
+    "generator_ignored_cheatsheet": 0,
+    "ignore_rate": 0
+  },
+  "cheatsheet_effectiveness": {
+    "acc_before_cheatsheet_exists": 0.85,
+    "acc_after_cheatsheet_exists": 0,
+    "delta": -0.85,
+    "first_nonempty_question": 20
+  },
+  "structural_quality": {
+    "issues": [],
+    "final_word_count": 1,
+    "final_token_count": 1
+  },
+  "abstraction_mismatch": {
+    "detected": false,
+    "generator_size": 14.0,
+    "curator_size": 14.0,
+    "note": "Models are similar size."
+  },
+  "failure_patterns": {
+    "overly_specific_tricks": 0,
+    "contradictions": 0,
+    "shallow_summaries": 0,
+    "stale_no_updates": 0
+  },
+  "audit_dir": "results_oss/cheatsheet_audit/Qwen2.5-14B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260310-172628"
+}

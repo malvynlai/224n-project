@@ -51,12 +51,12 @@ log = logging.getLogger("multi_agent_eval")
 # ─────────────────────────────────────────────────────────────────────
 
 GENERATOR_MODELS = [
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-14B-Instruct",
     "mistralai/Mistral-7B-Instruct-v0.2",
 ]
 
-CURATOR_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+CURATOR_MODEL = "Qwen/Qwen2.5-14B-Instruct"
 
 ALL_APPROACHES = [
     "MultiGenerator",
@@ -176,7 +176,7 @@ def _truncate_qa_section(qa_entries: list, max_total_words: int) -> str:
 
 
 MAX_CONTEXT_TOKENS = 8192
-MAX_CURATOR_INPUT_TOKENS = 4096  # leave room for output
+MAX_CURATOR_INPUT_TOKENS = 6000  # ~800-word output leaves room for larger input
 
 
 def build_curator_prompt_within_limit(
@@ -741,35 +741,41 @@ def run_multi_generator_cumulative_batched(
                 correct=f"{correct}/{batch_start+i+1}",
             )
 
-        # Phase 4: single curator call with all Q&A pairs from this batch
-        qa_entries = [
-            (
-                f"### Question {batch_start+i+1}\n{batch_input_txts[i]}\n\n"
-                f"### Majority-Voted Answer {batch_start+i+1}\n{outputs_list[-(k - i)]['final_answer']}\n\n---\n\n"
-            )
-            for i in range(k)
-        ]
+        # Phase 4: run curator in sub-batches of 8 (4 curator calls for batch_size=32)
+        CURATOR_SUB_BATCH_SIZE = 8
+        curator_cheatsheet = cheatsheet
+        for sub_start in range(0, k, CURATOR_SUB_BATCH_SIZE):
+            sub_end = min(sub_start + CURATOR_SUB_BATCH_SIZE, k)
+            sub_k = sub_end - sub_start
+            qa_entries = [
+                (
+                    f"### Question {batch_start + sub_start + i + 1}\n{batch_input_txts[sub_start + i]}\n\n"
+                    f"### Majority-Voted Answer {batch_start + sub_start + i + 1}\n{outputs_list[-(k - (sub_start + i))]['final_answer']}\n\n---\n\n"
+                )
+                for i in range(sub_k)
+            ]
 
-        manager = getattr(model, "local_manager", None)
-        if manager is not None:
-            curator_prompt = build_curator_prompt_within_limit(
-                manager, CURATOR_MODEL, CURATOR_PROMPT, cheatsheet, qa_entries, batch_size=k,
+            manager = getattr(model, "local_manager", None)
+            if manager is not None:
+                curator_prompt = build_curator_prompt_within_limit(
+                    manager, CURATOR_MODEL, CURATOR_PROMPT, curator_cheatsheet, qa_entries, batch_size=sub_k,
+                )
+            else:
+                curator_shell = CURATOR_PROMPT.replace(
+                    "[[PREVIOUS_CHEATSHEET]]", curator_cheatsheet
+                ).replace("[[QUESTION]]", f"(Batch of {sub_k} questions — see below)")
+                qa_section = "".join(qa_entries)
+                curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
+            curator_history = [{"role": "user", "content": curator_prompt}]
+            log.info(f"  Batch {b+1}/{num_batches}: curating cheatsheet from {sub_k} Q&A pairs (sub-batch {sub_start//CURATOR_SUB_BATCH_SIZE + 1}/{(k + CURATOR_SUB_BATCH_SIZE - 1)//CURATOR_SUB_BATCH_SIZE})...")
+            curator_output = model.generate(
+                history=curator_history,
+                temperature=temperature,
+                max_tokens=2 * max_tokens,
+                allow_code_execution=False,
             )
-        else:
-            curator_shell = CURATOR_PROMPT.replace(
-                "[[PREVIOUS_CHEATSHEET]]", cheatsheet
-            ).replace("[[QUESTION]]", f"(Batch of {k} questions — see below)")
-            qa_section = "".join(qa_entries)
-            curator_prompt = curator_shell.replace("[[MODEL_ANSWER]]", qa_section)
-        curator_history = [{"role": "user", "content": curator_prompt}]
-        log.info(f"  Batch {b+1}/{num_batches}: curating cheatsheet from {k} Q&A pairs...")
-        curator_output = model.generate(
-            history=curator_history,
-            temperature=temperature,
-            max_tokens=2 * max_tokens,
-            allow_code_execution=False,
-        )
-        cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, cheatsheet))
+            curator_cheatsheet = cap_cheatsheet(extract_cheatsheet(curator_output, curator_cheatsheet))
+        cheatsheet = curator_cheatsheet
         outputs_list[-1]["final_cheatsheet"] = cheatsheet
 
         # Checkpoint after every batch
@@ -853,6 +859,10 @@ def build_parser() -> argparse.ArgumentParser:
                          "update, track token growth, reuse, failure patterns, "
                          "and abstraction mismatch. Output goes to "
                          "<save_dir>/cheatsheet_audit/")
+    p.add_argument("--dc_batch_size", type=int, default=32,
+                    help="DC-Cumulative batch size: questions per curator update. "
+                         "Use 1 for per-question curation (good for cheatsheet "
+                         "auditing with small sample counts). Default: 32")
     return p
 
 
@@ -949,7 +959,7 @@ def main():
                         max_tokens=args.max_tokens,
                         temperature=args.temperature,
                         save_dir=args.save_dir,
-                        batch_size=32,
+                        batch_size=getattr(args, 'dc_batch_size', 32),
                         cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                     )
                 else:

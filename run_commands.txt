@@ -4,6 +4,11 @@
 #  Curator: Qwen2.5-14B (for multi-agent only)
 ################################################################################
 
+# ── Environment (set before running to avoid home quota) ─────────────────────
+# export HF_HOME=/scratch/users/$USER/hf_cache
+# export TRANSFORMERS_CACHE=$HF_HOME
+# export HF_DATASETS_CACHE=$HF_HOME/datasets
+
 # NOTE: All commands assume you are inside an srun GPU session or SLURM job.
 #       Prefix with srun if running from login node:
 #
@@ -88,6 +93,59 @@ python run_all_evaluations.py \
     --max_samples -1 \
     --quantization 8bit \
     --resume
+
+
+# =============================================================================
+#  Cheatsheet audits (diagnostic snapshots for DynamicCheatsheet runs)
+# =============================================================================
+#
+#  Add --cheatsheet_verbose to save per-question cheatsheet snapshots, token
+#  growth, memory item reuse, and failure patterns. Output goes to
+#  <save_dir>/cheatsheet_audit/<model>_<approach>_<task>_<timestamp>/
+#
+#  Add --dc_batch_size 1 for per-question curation (curator runs after each
+#  question). Best for auditing with small sample counts.
+#
+#  Useful for debugging DynamicCheatsheet_Cumulative behavior.
+
+# --- OSS: cheatsheet audit on GSM8K (small sample, per-question curation) ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches DynamicCheatsheet_Cumulative \
+    --datasets GSM8K \
+    --max_samples 20 \
+    --quantization 4bit \
+    --dc_batch_size 1 \
+    --cheatsheet_verbose
+
+# --- OSS: cheatsheet audit on GSM8K (batched, default batch_size=32) ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches DynamicCheatsheet_Cumulative \
+    --datasets GSM8K \
+    --max_samples 20 \
+    --quantization 4bit \
+    --cheatsheet_verbose
+
+# --- OSS: cheatsheet audit on full GSM8K run ---
+python run_all_evaluations.py \
+    --backend vllm \
+    --approaches DynamicCheatsheet_Cumulative \
+    --datasets GSM8K \
+    --max_samples -1 \
+    --quantization 4bit \
+    --cheatsheet_verbose \
+    --resume
+
+# --- Multi-agent: cheatsheet audit (MultiGenerator_Cumulative, per-question) ---
+python run_multi_agent_eval.py \
+    --backend vllm \
+    --approaches MultiGenerator_Cumulative \
+    --datasets GSM8K \
+    --max_samples 20 \
+    --quantization 4bit \
+    --dc_batch_size 1 \
+    --cheatsheet_verbose
 
 
 # =============================================================================
@@ -183,6 +241,9 @@ python run_multi_agent_eval.py \
 #    --save_dir        Output directory (default: results_oss)
 #    --resume          Skip completed runs
 #    --no_parallel     Force single-GPU sequential mode
+#    --cheatsheet_verbose  Save cheatsheet audit snapshots to <save_dir>/cheatsheet_audit/
+#    --dc_batch_size   DC-Cumulative: questions per curator update (default: 32).
+#                      Use 1 for per-question curation (good for auditing).
 #
 #  run_multi_agent_eval.py:
 #    --approaches      MultiGenerator | MultiGenerator_Cumulative
@@ -196,6 +257,9 @@ python run_multi_agent_eval.py \
 #    --no_code_execution   Disable code execution
 #    --save_dir        Output directory (default: results_multi_agent)
 #    --resume          Skip completed runs
+#    --cheatsheet_verbose  Save cheatsheet audit snapshots (MultiGenerator_Cumulative only)
+#    --dc_batch_size   MultiGenerator_Cumulative: questions per curator update (default: 32).
+#                      Use 1 for per-question curation (good for auditing).
 #
 #  Available datasets:
 #    AIME_2024, AIME_2025, AIME_2020_2024, GPQA_Diamond,
