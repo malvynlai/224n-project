@@ -1,6 +1,0 @@
-# Cheatsheet after Q25
-# Correct: True  |  Answer: 3200  |  Target: 3200
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

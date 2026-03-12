@@ -21,24 +21,25 @@
 #  run_all_evaluations.py  (single-model: each model evaluated independently)
 # =============================================================================
 
-# --- Quick test (15 samples) on GSM8K + MMLU_Pro_Engineering, vLLM backend ---
+# --- Quick test (15 samples) on GPQA_Diamond + MMLU_Pro_Engineering, vLLM backend ---
 python run_all_evaluations.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 15 \
     --quantization 4bit
 
-# --- Full run on GSM8K + MMLU_Pro_Engineering, vLLM backend ---
+# --- Full run on GPQA_Diamond + MMLU_Pro_Engineering, vLLM backend ---
 python run_all_evaluations.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
 
-# --- Full run, all datasets, vLLM backend ---
+# --- Full run, GPQA_Diamond + MMLU_Pro_Engineering, vLLM backend ---
 python run_all_evaluations.py \
     --backend vllm \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -47,7 +48,7 @@ python run_all_evaluations.py \
 python run_all_evaluations.py \
     --backend vllm \
     --approaches default \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -56,7 +57,7 @@ python run_all_evaluations.py \
 python run_all_evaluations.py \
     --backend vllm \
     --approaches DynamicCheatsheet_Cumulative \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -65,7 +66,7 @@ python run_all_evaluations.py \
 python run_all_evaluations.py \
     --backend vllm \
     --models Qwen/Qwen2.5-14B-Instruct \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -73,7 +74,7 @@ python run_all_evaluations.py \
 # --- HuggingFace backend (fallback if vLLM has issues) ---
 python run_all_evaluations.py \
     --backend hf \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -82,14 +83,14 @@ python run_all_evaluations.py \
 python run_all_evaluations.py \
     --backend vllm \
     --no_parallel \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit
 
 # --- 8-bit quantization instead of 4-bit ---
 python run_all_evaluations.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 8bit \
     --resume
@@ -99,7 +100,7 @@ python run_all_evaluations.py \
 python run_all_evaluations.py \
     --backend vllm \
     --approaches default \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 50 \
     --quantization 4bit \
     --self_consistency \
@@ -120,40 +121,40 @@ python run_all_evaluations.py \
 #
 #  Useful for debugging DynamicCheatsheet_Cumulative behavior.
 
-# --- OSS: cheatsheet audit on GSM8K (small sample, per-question curation) ---
+# --- OSS: cheatsheet audit on GPQA_Diamond + MMLU (small sample, per-question curation) ---
 python run_all_evaluations.py \
     --backend vllm \
     --approaches DynamicCheatsheet_Cumulative \
-    --datasets GSM8K \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 20 \
     --quantization 4bit \
     --dc_batch_size 1 \
     --cheatsheet_verbose
 
-# --- OSS: cheatsheet audit on GSM8K (batched, default batch_size=32) ---
+# --- OSS: cheatsheet audit on GPQA_Diamond + MMLU (batched, default batch_size=32) ---
 python run_all_evaluations.py \
     --backend vllm \
     --approaches DynamicCheatsheet_Cumulative \
-    --datasets GSM8K \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 20 \
     --quantization 4bit \
     --cheatsheet_verbose
 
-# --- OSS: cheatsheet audit on full GSM8K run ---
+# --- OSS: cheatsheet audit on full GPQA_Diamond + MMLU run ---
 python run_all_evaluations.py \
     --backend vllm \
     --approaches DynamicCheatsheet_Cumulative \
-    --datasets GSM8K \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --cheatsheet_verbose \
     --resume
 
-# --- Multi-agent: cheatsheet audit (MultiGenerator_Cumulative, per-question) ---
+# --- Multi-agent: cheatsheet audit (MultiGenerator_Cumulative, per-question, GPQA+MMLU) ---
 python run_multi_agent_eval.py \
     --backend vllm \
     --approaches MultiGenerator_Cumulative \
-    --datasets GSM8K \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 20 \
     --quantization 4bit \
     --dc_batch_size 1 \
@@ -172,18 +173,19 @@ python run_multi_agent_eval.py \
 # --- DC-RS quick test (50 samples, k=3) ---
 python run_dc_rs_eval.py \
     --models Qwen/Qwen2.5-7B-Instruct \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 50 \
     --quantization 4bit \
     --retrieve_top_k 3
 
-# --- DC-RS with more retrieval (k=5) ---
+# --- DC-RS with more retrieval (k=5) on GPQA + MMLU ---
 python run_dc_rs_eval.py \
     --models Qwen/Qwen2.5-7B-Instruct \
-    --datasets GSM8K \
-    --max_samples 100 \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
+    --max_samples 200 \
     --retrieve_top_k 5 \
-    --quantization 4bit
+    --quantization 4bit \
+    --cheatsheet_verbose
 
 
 # =============================================================================
@@ -195,7 +197,7 @@ python run_dc_rs_eval.py \
 # --- Multi-agent DC-RS quick test ---
 python run_multi_agent_dc_rs_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples 20 \
     --quantization 4bit \
     --retrieve_top_k 3
@@ -203,15 +205,16 @@ python run_multi_agent_dc_rs_eval.py \
 # --- Multi-agent DC-RS with separate memory (3 cheatsheets) ---
 python run_multi_agent_dc_rs_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --no_shared_memory \
     --resume
 
-# --- Full run, all default datasets ---
+# --- Full run, GPQA_Diamond + MMLU_Pro_Engineering ---
 python run_multi_agent_dc_rs_eval.py \
     --backend vllm \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -223,36 +226,36 @@ python run_multi_agent_dc_rs_eval.py \
 #  Curator:    Qwen2.5-14B
 # =============================================================================
 
-# --- Quick test (15 samples) on GSM8K + MMLU_Pro_Engineering, vLLM ---
+# --- Quick test (15 samples) on GPQA_Diamond + MMLU_Pro_Engineering, vLLM ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator \
     --max_samples 15 \
     --quantization 4bit
 
-# --- Full run, MultiGenerator on GSM8K + MMLU_Pro_Engineering, vLLM ---
+# --- Full run, MultiGenerator on GPQA_Diamond + MMLU_Pro_Engineering, vLLM ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator \
     --max_samples -1 \
     --quantization 4bit \
     --resume
 
-# --- Full run, MultiGenerator_Cumulative on GSM8K + MMLU_Pro_Engineering ---
+# --- Full run, MultiGenerator_Cumulative on GPQA_Diamond + MMLU_Pro_Engineering ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator_Cumulative \
     --max_samples -1 \
     --quantization 4bit \
     --resume
 
-# --- Full run, both approaches on GSM8K + MMLU_Pro_Engineering ---
+# --- Full run, both approaches on GPQA_Diamond + MMLU_Pro_Engineering ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
@@ -261,23 +264,24 @@ python run_multi_agent_eval.py \
 python run_multi_agent_eval.py \
     --backend vllm \
     --approaches MultiGenerator_Cumulative \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --no_shared_memory \
     --resume
 
-# --- Full run, all datasets, both approaches ---
+# --- Full run, GPQA_Diamond + MMLU_Pro_Engineering, both approaches ---
 python run_multi_agent_eval.py \
     --backend vllm \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --max_samples -1 \
     --quantization 4bit \
     --resume
 
-# --- Quick test, single dataset ---
+# --- Quick test, GPQA_Diamond + MMLU_Pro_Engineering ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator \
     --max_samples 15 \
     --quantization 4bit
@@ -285,7 +289,7 @@ python run_multi_agent_eval.py \
 # --- HuggingFace backend (fallback) ---
 python run_multi_agent_eval.py \
     --backend hf \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator \
     --max_samples -1 \
     --quantization 4bit \
@@ -294,7 +298,7 @@ python run_multi_agent_eval.py \
 # --- Higher temperature for diversity in generator outputs ---
 python run_multi_agent_eval.py \
     --backend vllm \
-    --datasets GSM8K MMLU_Pro_Engineering \
+    --datasets GPQA_Diamond MMLU_Pro_Engineering \
     --approaches MultiGenerator \
     --max_samples -1 \
     --quantization 4bit \

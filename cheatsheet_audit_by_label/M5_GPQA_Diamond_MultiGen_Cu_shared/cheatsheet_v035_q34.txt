@@ -1,0 +1,6 @@
+# Cheatsheet after Q35
+# Correct: True  |  Answer: (B)  |  Target: (B)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

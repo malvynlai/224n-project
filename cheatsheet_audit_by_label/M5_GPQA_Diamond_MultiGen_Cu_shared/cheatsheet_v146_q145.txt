@@ -1,0 +1,85 @@
+# Cheatsheet after Q146
+# Correct: True  |  Answer: (A)  |  Target: (A)
+# Tokens: ~377  |  Memory items: 1
+# ======================================================================
+
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+[Question 97]
+<description>
+[The total number of hydrogen atoms in the two liquids of mixture X is 14, but since the options do not include 14, the closest match is (C) 12.]
+</description>
+<example>
+[The closest match to the correct answer is (C) 12.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 98]
+<description>
+[The major product of the reaction between 5-fluorocyclopenta-1,3-diene and maleic anhydride is (A) (3aR,4R,7S,7aS,8r)-8-fluoro-3a,4,7,7a-tetrahydro-4,7-methanoisobenzofuran-1,3-dione.]
+</description>
+<example>
+[The correct product is (A) (3aR,4R,7S,7aS,8r)-8-fluoro-3a,4,7,7a-tetrahydro-4,7-methanoisobenzofuran-1,3-dione.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 99]
+<description>
+[The number of stars that would be detectable using the ESPRESSO spectrograph is 2, corresponding to options (C) and (D).]
+</description>
+<example>
+[The detectable stars are (C) and (D).]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 100]
+<description>
+[The correct sequence of reagents and the resulting product B is (B) (i) LDA, (ii) CH3CH2I, (iii) H3O+ = pentan-2-one + N,N-dimethylethanamine.]
+</description>
+<example>
+[The correct product is (B) (i) LDA, (ii) CH3CH2I, (iii) H3O+ = pentan-2-one + N,N-dimethylethanamine.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 101]
+<description>
+[The interplanar distance of the (111) plane in the rhombohedral crystal is approximately 8.95 Angstrom.]
+</description>
+<example>
+[The interplanar distance is approximately 8.95 Angstrom.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 102]
+<description>
+[The minimum volume of the monobasic strong acid required is 32.14 cm3, and the pH of the resulting solution is approximately 3.16.]
+</description>
+<example>
+[The minimum volume is 32.14 cm3, and the pH is approximately 3.16.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 103]
+<description>
+[The possible product when (1S,4R)-2-vinyl-2-azabicyclo[2.2.1]hept-5-ene undergoes Cope rearrangement is (B) 4,6,7,7a-tetrahydro-3H-cyclopenta[c]pyridine.]
+</description>
+<example>
+[The correct product is (B) 4,6,7,7a-tetrahydro-3H-cyclopenta[c]pyridine.]
+</example>
+</memory_item>
+
+[memory_item>
+[Question 104]
+<description>
+[The number of possible products when racemic 3-methylpent-1-ene is treated with Grubbs catalyst, excluding ethene, is 6.]
+</description>
+<example>
+[The number of possible products is 6.]
+</example>
+</memory_item>

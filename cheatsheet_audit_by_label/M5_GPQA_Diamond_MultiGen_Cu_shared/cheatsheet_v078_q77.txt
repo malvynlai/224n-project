@@ -1,0 +1,6 @@
+# Cheatsheet after Q78
+# Correct: True  |  Answer: B  |  Target: (B)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

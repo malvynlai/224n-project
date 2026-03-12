@@ -1,0 +1,5 @@
+Label: D4
+Experiment: DC-RS Multi-Agent
+Dataset: GPQA_Diamond
+Memory: non-shared (--no_shared_memory)
+Script: run_multi_agent_dc_rs_eval.py

@@ -75,6 +75,7 @@ ALL_DATASETS = [
 
 GENERATOR_PROMPT_PATH = "prompts/generator_prompt.txt"
 CURATOR_PROMPT_PATH = "prompts/curator_prompt_for_dc_cumulative.txt"
+CURATOR_PROMPT_MULTI_AGENT_PATH = "prompts/curator_prompt_for_multi_agent_verifier.txt"
 
 
 def read_file(path: str) -> str:
@@ -84,6 +85,7 @@ def read_file(path: str) -> str:
 
 GENERATOR_PROMPT = read_file(GENERATOR_PROMPT_PATH)
 CURATOR_PROMPT = read_file(CURATOR_PROMPT_PATH)
+CURATOR_PROMPT_MULTI_AGENT = read_file(CURATOR_PROMPT_MULTI_AGENT_PATH)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -153,7 +155,7 @@ def build_curator_prompt(
     template: str,
     cheatsheet: str,
     qa_entries: list,
-    batch_size: int = 32,
+    batch_size: int = 16,
 ) -> str:
     """Build curator prompt (no truncation; 32K context supports full input)."""
     qa_placeholder = "[[MODEL_ANSWER]]"
@@ -536,7 +538,7 @@ def run_multi_generator_cumulative_batched(
     temperature: float = 0.0,
     save_dir: str = "results_multi_agent",
     shuffle_seed: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 16,
     cheatsheet_verbose: bool = False,
     shared_memory: bool = True,
 ) -> Dict:
@@ -725,12 +727,13 @@ def run_multi_generator_cumulative_batched(
                 qa_entries = [
                     (
                         f"### Question {batch_start + sub_start + i + 1}\n{batch_input_txts[sub_start + i]}\n\n"
-                        f"### Majority-Voted Answer {batch_start + sub_start + i + 1}\n{outputs_list[-(k - (sub_start + i))]['final_answer']}\n\n---\n\n"
+                        f"{outputs_list[-(k - (sub_start + i))]['final_output']}"
+                        f"### Majority-Voted Answer (for reference)\n{outputs_list[-(k - (sub_start + i))]['final_answer']}\n\n---\n\n"
                     )
                     for i in range(sub_k)
                 ]
                 curator_prompt = build_curator_prompt(
-                    CURATOR_PROMPT, curator_cheatsheet, qa_entries, batch_size=sub_k,
+                    CURATOR_PROMPT_MULTI_AGENT, curator_cheatsheet, qa_entries, batch_size=sub_k,
                 )
                 curator_history = [{"role": "user", "content": curator_prompt}]
                 log.info(f"  Batch {b+1}/{num_batches}: curating shared cheatsheet from {sub_k} Q&A pairs (sub-batch {sub_start//CURATOR_SUB_BATCH_SIZE + 1}/{(k + CURATOR_SUB_BATCH_SIZE - 1)//CURATOR_SUB_BATCH_SIZE})...")
@@ -857,7 +860,7 @@ def build_parser() -> argparse.ArgumentParser:
                          "update, track token growth, reuse, failure patterns, "
                          "and abstraction mismatch. Output goes to "
                          "<save_dir>/cheatsheet_audit/")
-    p.add_argument("--dc_batch_size", type=int, default=32,
+    p.add_argument("--dc_batch_size", type=int, default=16,
                     help="DC-Cumulative batch size: questions per curator update. "
                          "Use 1 for per-question curation (good for cheatsheet "
                          "auditing with small sample counts). Default: 32")
@@ -962,7 +965,7 @@ def main():
                         max_tokens=args.max_tokens,
                         temperature=args.temperature,
                         save_dir=args.save_dir,
-                        batch_size=getattr(args, 'dc_batch_size', 32),
+                        batch_size=getattr(args, 'dc_batch_size', 16),
                         cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                         shared_memory=shared_mem,
                     )

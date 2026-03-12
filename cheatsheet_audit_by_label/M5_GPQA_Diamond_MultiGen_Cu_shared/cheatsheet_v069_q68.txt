@@ -1,0 +1,6 @@
+# Cheatsheet after Q69
+# Correct: False  |  Answer: (B)  |  Target: (A)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

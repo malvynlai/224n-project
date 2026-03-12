@@ -1,0 +1,6 @@
+Label: M2
+Experiment: Multi-Agent Ensemble
+Dataset: MMLU_Pro_Engineering
+Mode: MultiGenerator_Cumulative
+Memory: shared
+Script: run_multi_agent_eval.py

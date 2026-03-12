@@ -1,0 +1,6 @@
+# Cheatsheet after Q36
+# Correct: True  |  Answer: 138  |  Target: (D)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

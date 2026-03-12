@@ -1,0 +1,6 @@
+# Cheatsheet after Q53
+# Correct: False  |  Answer: (C)  |  Target: (B)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

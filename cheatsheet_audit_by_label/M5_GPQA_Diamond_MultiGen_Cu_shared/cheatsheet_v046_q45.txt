@@ -1,0 +1,6 @@
+# Cheatsheet after Q46
+# Correct: False  |  Answer: (D)  |  Target: (C)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

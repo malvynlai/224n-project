@@ -1,0 +1,17 @@
+[
+  {
+    "generators": [
+      "Qwen2.5-7B-Instruct",
+      "Qwen2.5-14B-Instruct",
+      "Mistral-7B-Instruct-v0.2"
+    ],
+    "curator": "Qwen2.5-14B-Instruct",
+    "approach": "MultiGenerator",
+    "dataset": "GPQA_Diamond",
+    "accuracy": 0.30808080808080807,
+    "correct": 61,
+    "total": 198,
+    "elapsed_s": 1112.5,
+    "output_path": "results_multi_agent/GPQA_Diamond/Qwen2.5-7B-Instruct+Qwen2.5-14B-Instruct+Mistral-7B-Instruct-v0.2__Qwen2.5-14B-Instruct_MultiGenerator_20260311-164125.jsonl"
+  }
+]

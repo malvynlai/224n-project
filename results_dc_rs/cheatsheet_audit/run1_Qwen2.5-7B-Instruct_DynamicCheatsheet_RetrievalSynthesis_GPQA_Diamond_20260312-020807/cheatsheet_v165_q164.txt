@@ -1,0 +1,6 @@
+# Cheatsheet after Q165
+# Correct: False  |  Answer:   |  Target: (A)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

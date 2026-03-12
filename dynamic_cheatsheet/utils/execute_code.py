@@ -34,12 +34,22 @@ def extract_and_run_python_code(txt: str) -> str:
 
     def ensure_print_statement(code: str) -> str:
         """
-        Append a print statement if the last line isn't a comment or a print statement.
+        Append a print statement if the last line is a simple expression (not assignment,
+        comment, or already a print). Do NOT wrap assignments like 'x = 1' as print(x = 1).
         """
         lines = code.splitlines()
+        if not lines:
+            return code
         last_line = lines[-1].rstrip()
-        if not last_line.startswith(("print(", "#", " ", "\t")) and (not ("return" in last_line)):# and len((last_line.split(" "))) == 1:
-            lines[-1] = f"print({last_line})"
+        # Skip: comments, existing print, indented (continuation), return, assignments
+        if last_line.startswith(("print(", "#", " ", "\t")) or "return" in last_line:
+            return code
+        # Do NOT wrap assignment statements (e.g. "gamma = 1/..." -> invalid print(gamma=...))
+        if "=" in last_line and not last_line.strip().startswith("="):
+            # Likely assignment: "x = expr" or "x,y = a,b"
+            return code
+        # Only wrap simple expressions (variable refs, function calls, literals)
+        lines[-1] = f"print({last_line})"
         return "\n".join(lines)
 
     if "```python" not in txt:

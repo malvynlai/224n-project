@@ -1,6 +1,0 @@
-# Cheatsheet after Q21
-# Correct: True  |  Answer: 310  |  Target: 310
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

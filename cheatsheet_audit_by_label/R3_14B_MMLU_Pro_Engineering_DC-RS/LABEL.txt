@@ -1,0 +1,5 @@
+Label: R3
+Experiment: DC-RS Normal
+Model: Qwen2.5-14B-Instruct
+Dataset: MMLU_Pro_Engineering
+Script: run_dc_rs_eval.py

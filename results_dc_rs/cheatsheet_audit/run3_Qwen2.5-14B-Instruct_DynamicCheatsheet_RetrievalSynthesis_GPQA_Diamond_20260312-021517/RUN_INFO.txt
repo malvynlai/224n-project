@@ -1,0 +1,25 @@
+========================================================================
+  CHEATSHEET AUDIT RUN INFO
+  Use this to organize into cheatsheet_audit_by_label/<label>/
+========================================================================
+
+  Run index:    3
+  Model:        Qwen/Qwen2.5-14B-Instruct
+  Task:         GPQA_Diamond
+  Approach:     DynamicCheatsheet_RetrievalSynthesis
+  Generator:    Qwen/Qwen2.5-14B-Instruct
+  Curator:      Qwen/Qwen2.5-14B-Instruct
+
+  Flags / config:
+    backend: hf
+    dataset: GPQA_Diamond
+    max_samples: 200
+    max_tokens: 2048
+    model: Qwen/Qwen2.5-14B-Instruct
+    no_code_execution: False
+    quantization: 4bit
+    retrieve_top_k: 5
+    script: run_dc_rs_eval.py
+    temperature: 0.0
+
+========================================================================

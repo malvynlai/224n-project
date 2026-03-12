@@ -1,0 +1,6 @@
+Label: C5
+Experiment: Stronger Curator Multi-Agent (curator = weakest Gemini)
+Dataset: GPQA_Diamond
+Mode: MultiGenerator_Cumulative
+Memory: shared
+Script: run_multi_agent_eval.py

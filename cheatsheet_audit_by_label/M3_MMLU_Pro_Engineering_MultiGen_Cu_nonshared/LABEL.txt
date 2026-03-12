@@ -1,0 +1,6 @@
+Label: M3
+Experiment: Multi-Agent Ensemble
+Dataset: MMLU_Pro_Engineering
+Mode: MultiGenerator_Cumulative
+Memory: non-shared (--no_shared_memory)
+Script: run_multi_agent_eval.py

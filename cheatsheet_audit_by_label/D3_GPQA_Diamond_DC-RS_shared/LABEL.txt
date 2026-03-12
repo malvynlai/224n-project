@@ -1,0 +1,5 @@
+Label: D3
+Experiment: DC-RS Multi-Agent
+Dataset: GPQA_Diamond
+Memory: shared
+Script: run_multi_agent_dc_rs_eval.py

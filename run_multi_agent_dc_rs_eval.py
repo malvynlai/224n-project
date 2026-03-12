@@ -283,6 +283,8 @@ def run_multi_agent_dc_rs(
     execute_code: bool = True,
     shared_memory: bool = True,
     cheatsheet_verbose: bool = False,
+    run_index: Optional[int] = None,
+    run_flags: Optional[Dict] = None,
 ) -> Dict:
     """
     Run multi-agent DC-RS: 3 generators + 1 curator, retrieval + synthesis before generation.
@@ -319,6 +321,8 @@ def run_multi_agent_dc_rs(
             approach="MultiGenerator_DCRS",
             generator_model=GENERATOR_MODELS[0],
             curator_model=CURATOR_MODEL,
+            run_index=run_index,
+            run_flags=run_flags or {},
         )
 
     gen_short = "+".join(m.split("/")[-1].split("-Instruct")[0] for m in GENERATOR_MODELS)
@@ -653,6 +657,21 @@ def main():
             continue
 
         log.info(f"\n  >>> {task}")
+        run_index = len(all_summaries) + 1
+        run_flags = {
+            "script": "run_multi_agent_dc_rs_eval.py",
+            "dataset": task,
+            "max_samples": args.max_samples,
+            "max_tokens": args.max_tokens,
+            "temperature": args.temperature,
+            "retrieve_top_k": args.retrieve_top_k,
+            "backend": args.backend,
+            "quantization": args.quantization,
+            "no_code_execution": args.no_code_execution,
+            "shared_memory": shared_mem,
+            "no_shared_memory": not shared_mem,
+            "shuffle_seed": args.shuffle_seed,
+        }
         try:
             summary = run_multi_agent_dc_rs(
                 model=model,
@@ -665,6 +684,8 @@ def main():
                 execute_code=not args.no_code_execution,
                 shared_memory=shared_mem,
                 cheatsheet_verbose=args.cheatsheet_verbose,
+                run_index=run_index,
+                run_flags=run_flags,
                 shuffle_seed=args.shuffle_seed,
             )
             all_summaries.append(summary)

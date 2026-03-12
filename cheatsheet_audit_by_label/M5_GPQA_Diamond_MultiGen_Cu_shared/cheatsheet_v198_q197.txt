@@ -1,0 +1,80 @@
+# Cheatsheet after Q198
+# Correct: False  |  Answer: (A)  |  Target: (B)
+# Tokens: ~423  |  Memory items: 8
+# ======================================================================
+
+<version>
+1.0
+</version>
+SOLUTIONS, IMPLEMENTATION PATTERNS, AND CODE SNIPPETS
+<memory_item>
+<description>
+[The correct answer for the molecule formed when 5-butylnona-2,6-diene is heated is (C) 4-ethyl-3-methyldeca-1,5-diene.]
+</description>
+<example>
+[The correct product is (C) 4-ethyl-3-methyldeca-1,5-diene.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct structural suggestion for the unidentified drug using the spectral information is (C) Phenyl chloroformate.]
+</description>
+<example>
+[The correct product is (C) Phenyl chloroformate.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct location for disappearing ChIP peaks when PFA+DSG fixation was used is (B) At active promoters and enhancers.]
+</description>
+<example>
+[The correct location is (B) At active promoters and enhancers.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct expressions for the scalar potential (V) and vector potential (\vec{A}) at time t, satisfying $t > tr$, and position $\vec{r}$ are (A) V(\vec{r},t) = \dfrac{qc}{4\pi\epsilon_o (d c + \vec{d}. \vec{v})},  \vec{A(\vec{r},t)} = \dfrac{\mu qc \vec{v}}{4\pi (d c + \vec{d}. \vec{v})}.]
+</description>
+<example>
+[The correct expressions are (A) V(\vec{r},t) = \dfrac{qc}{4\pi\epsilon_o (d c + \vec{d}. \vec{v})},  \vec{A(\vec{r},t)} = \dfrac{\mu qc \vec{v}}{4\pi (d c + \vec{d}. \vec{v})}.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct minimum energy of the system is (B) 7.056 x 10^-27 Joules.]
+</description>
+<example>
+[The correct energy is (B) 7.056 x 10^-27 Joules.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct statement about the validity of the Mott-Gurney equation is (A) The Mott-Gurney equation is valid for a trap-free single-carrier device with no carrier injection barrier and negligible diffusion current.]
+</description>
+<example>
+[The correct statement is (A) The Mott-Gurney equation is valid for a trap-free single-carrier device with no carrier injection barrier and negligible diffusion current.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct products of the Pinacol rearrangement reaction are (B) A = 3-ethyl-3-phenylpentan-2-one, B = 3-(4-hydroxyphenyl)-3-phenylpentan-2-one, C = 1,2,2-tris(4-methoxyphenyl)-2-phenylethan-1-one.]
+</description>
+<example>
+[The correct products are (B) A = 3-ethyl-3-phenylpentan-2-one, B = 3-(4-hydroxyphenyl)-3-phenylpentan-2-one, C = 1,2,2-tris(4-methoxyphenyl)-2-phenylethan-1-one.]
+</example>
+</memory_item>
+
+<memory_item>
+<description>
+[The correct momentum of the absorbed photon is (B) p = 1.1*10^(-27) N*s.]
+</description>
+<example>
+[The correct momentum is (B) p = 1.1*10^(-27) N*s.]
+</example>
+</memory_item>

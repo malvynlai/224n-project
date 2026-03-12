@@ -1,44 +1,22 @@
 [
   {
     "model": "Qwen/Qwen2.5-7B-Instruct",
-    "approach": "default",
-    "task": "GSM8K",
-    "accuracy": 0.895,
-    "correct": 179,
-    "total": 200,
-    "elapsed_s": 322.0,
-    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_default_20260311-0016.jsonl"
-  },
-  {
-    "model": "Qwen/Qwen2.5-7B-Instruct",
-    "approach": "DynamicCheatsheet_Cumulative",
-    "task": "GSM8K",
-    "accuracy": 0.795,
-    "correct": 159,
-    "total": 200,
-    "elapsed_s": 1042.4,
-    "output_file": "results_oss/GSM8K/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_20260311-0034.jsonl",
-    "audit_dir": "results_oss/cheatsheet_audit/Qwen2.5-7B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260311-001645"
+    "approach": "default_sc5",
+    "task": "GPQA_Diamond",
+    "accuracy": 0.35858585858585856,
+    "correct": 71,
+    "total": 198,
+    "elapsed_s": 832.0,
+    "output_file": "results_oss/GPQA_Diamond/Qwen2.5-7B-Instruct_default_sc5_20260311-1621.jsonl"
   },
   {
     "model": "Qwen/Qwen2.5-14B-Instruct",
-    "approach": "default",
-    "task": "GSM8K",
-    "accuracy": 0.755,
-    "correct": 151,
-    "total": 200,
-    "elapsed_s": 554.7,
-    "output_file": "results_oss/GSM8K/Qwen2.5-14B-Instruct_default_20260311-0043.jsonl"
-  },
-  {
-    "model": "Qwen/Qwen2.5-14B-Instruct",
-    "approach": "DynamicCheatsheet_Cumulative",
-    "task": "GSM8K",
-    "accuracy": 0.745,
-    "correct": 149,
-    "total": 200,
-    "elapsed_s": 1717.4,
-    "output_file": "results_oss/GSM8K/Qwen2.5-14B-Instruct_DynamicCheatsheet_Cumulative_20260311-0112.jsonl",
-    "audit_dir": "results_oss/cheatsheet_audit/Qwen2.5-14B-Instruct_DynamicCheatsheet_Cumulative_GSM8K_20260311-004332"
+    "approach": "default_sc5",
+    "task": "GPQA_Diamond",
+    "accuracy": 0.3787878787878788,
+    "correct": 75,
+    "total": 198,
+    "elapsed_s": 1464.5,
+    "output_file": "results_oss/GPQA_Diamond/Qwen2.5-14B-Instruct_default_sc5_20260311-1656.jsonl"
   }
 ]

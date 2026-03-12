@@ -1,0 +1,6 @@
+# Cheatsheet after Q125
+# Correct: False  |  Answer: (A)  |  Target: (C)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

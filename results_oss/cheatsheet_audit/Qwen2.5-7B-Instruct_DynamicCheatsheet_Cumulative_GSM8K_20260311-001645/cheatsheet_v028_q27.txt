@@ -1,6 +1,0 @@
-# Cheatsheet after Q28
-# Correct: True  |  Answer: 34  |  Target: 34
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

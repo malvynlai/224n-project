@@ -193,7 +193,7 @@ def build_curator_prompt(
     template: str,
     cheatsheet: str,
     qa_entries: List[str],
-    batch_size: int = 32,
+    batch_size: int = 16,
 ) -> str:
     """Build curator prompt (no truncation; 32K context supports full input)."""
     qa_placeholder = "[[MODEL_ANSWER]]"
@@ -688,7 +688,7 @@ def run_single_batched_cumulative(
     temperature: float = 0.0,
     save_dir: str = "results_oss",
     shuffle_seed: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 16,
     cheatsheet_verbose: bool = False,
 ) -> Dict:
     """
@@ -809,7 +809,7 @@ def run_single_batched_cumulative(
                 correct=f"{correct}/{batch_start+i+1}",
             )
 
-        # Phase 4: run curator in sub-batches of 8 (4 curator calls for batch_size=32)
+        # Phase 4: run curator in sub-batches of 8 (2 curator calls for batch_size=16)
         CURATOR_SUB_BATCH_SIZE = 8
         curator_cheatsheet = cheatsheet
         for sub_start in range(0, k, CURATOR_SUB_BATCH_SIZE):
@@ -967,7 +967,7 @@ def run_sequential(args, models, approaches, datasets, completed):
                             max_tokens=args.max_tokens,
                             temperature=args.temperature,
                             save_dir=args.save_dir,
-                            batch_size=getattr(args, 'dc_batch_size', 32),
+                            batch_size=getattr(args, 'dc_batch_size', 16),
                             cheatsheet_verbose=getattr(args, 'cheatsheet_verbose', False),
                         )
                     else:
@@ -1064,7 +1064,7 @@ def run_parallel(args, models, approaches, datasets, completed):
             cmd.append("--resume")
         if getattr(args, 'cheatsheet_verbose', False):
             cmd.append("--cheatsheet_verbose")
-        if getattr(args, 'dc_batch_size', 32) != 32:
+        if getattr(args, 'dc_batch_size', 16) != 16:
             cmd.extend(["--dc_batch_size", str(args.dc_batch_size)])
         if getattr(args, 'self_consistency', False):
             cmd.append("--self_consistency")
@@ -1188,7 +1188,7 @@ def build_parser() -> argparse.ArgumentParser:
                          "update, track token growth, reuse, failure patterns, "
                          "and abstraction mismatch. Output goes to "
                          "<save_dir>/cheatsheet_audit/")
-    p.add_argument("--dc_batch_size", type=int, default=32,
+    p.add_argument("--dc_batch_size", type=int, default=16,
                     help="DC-Cumulative batch size: questions per curator update. "
                          "Use 1 for per-question curation (good for cheatsheet "
                          "auditing with small sample counts). Default: 32")

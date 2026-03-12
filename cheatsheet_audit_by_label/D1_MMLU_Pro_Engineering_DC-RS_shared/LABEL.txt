@@ -1,0 +1,5 @@
+Label: D1
+Experiment: DC-RS Multi-Agent
+Dataset: MMLU_Pro_Engineering
+Memory: shared
+Script: run_multi_agent_dc_rs_eval.py

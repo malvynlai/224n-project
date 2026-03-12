@@ -1,0 +1,6 @@
+Label: B8
+Experiment: Baseline
+Model: Qwen2.5-14B-Instruct
+Dataset: GPQA_Diamond
+Mode: DynamicCheatsheet_Cumulative
+Script: run_all_evaluations.py

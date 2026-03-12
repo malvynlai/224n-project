@@ -1,0 +1,6 @@
+# Cheatsheet after Q112
+# Correct: False  |  Answer: No final answer found  |  Target: (A)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

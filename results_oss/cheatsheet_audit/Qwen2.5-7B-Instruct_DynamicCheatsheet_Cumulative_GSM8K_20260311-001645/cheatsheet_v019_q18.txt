@@ -1,6 +1,0 @@
-# Cheatsheet after Q19
-# Correct: True  |  Answer: 40  |  Target: 40
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

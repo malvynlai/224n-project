@@ -11,7 +11,7 @@ import re
 import textwrap
 from collections import Counter
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 def _token_count(text: str) -> int:
@@ -70,12 +70,14 @@ class CheatsheetAuditor:
         approach: str = "DynamicCheatsheet_Cumulative",
         generator_model: Optional[str] = None,
         curator_model: Optional[str] = None,
+        run_index: Optional[int] = None,
+        run_flags: Optional[Dict[str, Any]] = None,
     ):
         short_model = model_name.split("/")[-1]
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.audit_dir = os.path.join(
-            save_dir, "cheatsheet_audit", f"{short_model}_{approach}_{task}_{ts}"
-        )
+        run_prefix = f"run{run_index}_" if run_index is not None else ""
+        dir_name = f"{run_prefix}{short_model}_{approach}_{task}_{ts}"
+        self.audit_dir = os.path.join(save_dir, "cheatsheet_audit", dir_name)
         os.makedirs(self.audit_dir, exist_ok=True)
 
         self.model_name = model_name
@@ -83,9 +85,38 @@ class CheatsheetAuditor:
         self.approach = approach
         self.generator_model = generator_model or model_name
         self.curator_model = curator_model or model_name
+        self.run_index = run_index
+        self.run_flags = run_flags or {}
 
         self.snapshots: List[Dict] = []
         self.item_history: List[List[str]] = []
+
+        # Write RUN_INFO.txt for easy organization into labeled folders
+        self._write_run_info()
+
+    def _write_run_info(self) -> None:
+        """Write RUN_INFO.txt with run metadata and flags for easy folder organization."""
+        lines = [
+            "=" * 72,
+            "  CHEATSHEET AUDIT RUN INFO",
+            "  Use this to organize into cheatsheet_audit_by_label/<label>/",
+            "=" * 72,
+            "",
+            f"  Run index:    {self.run_index if self.run_index is not None else 'N/A'}",
+            f"  Model:        {self.model_name}",
+            f"  Task:         {self.task}",
+            f"  Approach:     {self.approach}",
+            f"  Generator:    {self.generator_model}",
+            f"  Curator:      {self.curator_model}",
+            "",
+            "  Flags / config:",
+        ]
+        for k, v in sorted(self.run_flags.items()):
+            lines.append(f"    {k}: {v}")
+        lines.extend(["", "=" * 72])
+        run_info_path = os.path.join(self.audit_dir, "RUN_INFO.txt")
+        with open(run_info_path, "w") as f:
+            f.write("\n".join(lines) + "\n")
 
     def record(
         self,
@@ -221,6 +252,8 @@ class CheatsheetAuditor:
         )
 
         report = {
+            "run_index": self.run_index,
+            "run_flags": self.run_flags,
             "model": self.model_name,
             "task": self.task,
             "approach": self.approach,

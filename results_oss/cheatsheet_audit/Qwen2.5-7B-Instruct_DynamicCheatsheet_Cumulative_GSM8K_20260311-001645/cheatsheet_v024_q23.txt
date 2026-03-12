@@ -1,6 +1,0 @@
-# Cheatsheet after Q24
-# Correct: True  |  Answer: 10  |  Target: 10
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

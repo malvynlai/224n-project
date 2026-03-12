@@ -1,0 +1,6 @@
+Label: B2
+Experiment: Baseline
+Model: Qwen2.5-7B-Instruct
+Dataset: MMLU_Pro_Engineering
+Mode: DynamicCheatsheet_Cumulative
+Script: run_all_evaluations.py

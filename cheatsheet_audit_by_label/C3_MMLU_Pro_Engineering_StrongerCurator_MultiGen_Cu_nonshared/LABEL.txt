@@ -1,0 +1,6 @@
+Label: C3
+Experiment: Stronger Curator Multi-Agent (curator = weakest Gemini)
+Dataset: MMLU_Pro_Engineering
+Mode: MultiGenerator_Cumulative
+Memory: non-shared
+Script: run_multi_agent_eval.py

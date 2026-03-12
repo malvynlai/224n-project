@@ -1,0 +1,46 @@
+========================================================================
+  CHEATSHEET AUDIT SUMMARY
+========================================================================
+  Model:     Qwen/Qwen2.5-14B-Instruct
+  Task:      GPQA_Diamond
+  Approach:  DynamicCheatsheet_RetrievalSynthesis
+  Generator: Qwen/Qwen2.5-14B-Instruct
+  Curator:   Qwen/Qwen2.5-14B-Instruct
+  Questions: 198
+  Accuracy:  0.0% (0/198)
+
+--- Token Growth ---
+  Initial: 309  Final: 309  Max: 309  Mean: 309
+  Exceeded 2K tokens: 0 times
+  Exceeded 4K tokens: 0 times
+
+--- Memory Items ---
+  Final count: 2
+  Unique items ever created: 0
+  Long-lived (present in 2+ versions): 0
+  Ephemeral (appeared once): 0
+
+--- Reuse Analysis ---
+  Questions where cheatsheet existed: 198
+  Generator ignored cheatsheet: 198 (100% ignore rate)
+
+--- Effectiveness ---
+  Accuracy BEFORE cheatsheet exists: 0.0%
+  Accuracy AFTER  cheatsheet exists: 0.0%
+  Delta: +0.0%
+
+--- Structural Quality ---
+  Final word count: 238
+  Issues: no_description_tags
+
+--- Abstraction Mismatch ---
+  Generator: 14.0B  Curator: 14.0B
+  Mismatch detected: False
+
+--- Failure Patterns ---
+  Overly specific tricks: 0
+  Shallow summaries: 0
+  Stale (no update): 197
+
+Full audit data: results_dc_rs/cheatsheet_audit/run3_Qwen2.5-14B-Instruct_DynamicCheatsheet_RetrievalSynthesis_GPQA_Diamond_20260312-021517
+========================================================================

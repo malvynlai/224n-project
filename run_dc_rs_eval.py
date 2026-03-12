@@ -257,8 +257,11 @@ def run_dc_rs(
     temperature: float = 0.0,
     save_dir: str = "results_dc_rs",
     shuffle_seed: int = 10,
-    retrieve_top_k: int = 3,
+    top_k: int = 3,
     execute_code: bool = True,
+    cheatsheet_verbose: bool = False,
+    run_index: Optional[int] = None,
+    run_flags: Optional[Dict] = None,
 ) -> Dict:
     """
     Run DC-RS (Retrieval & Synthesis) evaluation.
@@ -287,6 +290,18 @@ def run_dc_rs(
     short_model_name = model_name.split("/")[-1]
     t0 = time.time()
 
+    auditor = None
+    if cheatsheet_verbose:
+        from dynamic_cheatsheet.utils.cheatsheet_auditor import CheatsheetAuditor
+        auditor = CheatsheetAuditor(
+            save_dir=save_dir,
+            model_name=model_name,
+            task=task,
+            approach="DynamicCheatsheet_RetrievalSynthesis",
+            run_index=run_index,
+            run_flags=run_flags or {},
+        )
+
     cheatsheet = "(empty)"
     past_inputs: List[str] = []
     past_outputs: List[str] = []
@@ -314,7 +329,7 @@ def run_dc_rs(
             if past_embeddings:
                 past_emb_arr = np.array(past_embeddings)
                 pairs = retrieve_top_k(
-                    current_emb, past_emb_arr, past_inputs, past_outputs, retrieve_top_k
+                    current_emb, past_emb_arr, past_inputs, past_outputs, top_k
                 )
                 retrieved_section = format_retrieved_pairs(pairs)
             else:
@@ -377,6 +392,17 @@ def run_dc_rs(
             "final_cheatsheet": cheatsheet,
         })
 
+        if auditor:
+            auditor.record(
+                question_idx=idx,
+                question_text=input_txt,
+                cheatsheet=cheatsheet,
+                generator_output=gen_output,
+                final_answer=final_answer,
+                target=target,
+                is_correct=is_correct,
+            )
+
         pbar.set_postfix(acc=f"{correct/(idx+1):.1%}", correct=f"{correct}/{idx+1}")
 
     elapsed = time.time() - t0
@@ -402,6 +428,10 @@ def run_dc_rs(
         for row in outputs:
             f.write(json.dumps(row, default=str) + "\n")
 
+    if auditor:
+        audit_report = auditor.finalize()
+        log.info(f"  >> Cheatsheet audit saved to {audit_report.get('audit_dir', '')}")
+
     summary = {
         "model": model_name,
         "approach": "DynamicCheatsheet_RetrievalSynthesis",
@@ -411,7 +441,7 @@ def run_dc_rs(
         "total": n,
         "elapsed_s": round(elapsed, 1),
         "output_file": out_path,
-        "retrieve_top_k": retrieve_top_k,
+        "retrieve_top_k": top_k,
     }
     log.info(f"  >> {task} done: {correct}/{n} = {accuracy:.1%} in {elapsed:.0f}s -> {out_path}")
     return summary
@@ -446,6 +476,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of past (input, output) pairs to retrieve (default: 3)",
     )
     p.add_argument("--resume", action="store_true", help="Skip completed runs")
+    p.add_argument(
+        "--cheatsheet_verbose", action="store_true",
+        help="Save cheatsheet audit (per-question snapshots) to save_dir/cheatsheet_audit/runN_...",
+    )
     return p
 
 
@@ -488,6 +522,7 @@ def main():
     log.info("=" * 72)
 
     all_summaries: List[Dict] = []
+    run_counter = 0
 
     for model_name in models:
         key = f"{model_name}|DynamicCheatsheet_RetrievalSynthesis|"
@@ -519,6 +554,19 @@ def main():
                 continue
 
             log.info(f"\n  >>> {model_name.split('/')[-1]} | {task}")
+            run_counter += 1
+            run_flags = {
+                "script": "run_dc_rs_eval.py",
+                "model": model_name,
+                "dataset": task,
+                "max_samples": args.max_samples,
+                "max_tokens": args.max_tokens,
+                "temperature": args.temperature,
+                "retrieve_top_k": args.retrieve_top_k,
+                "backend": args.backend,
+                "quantization": args.quantization,
+                "no_code_execution": args.no_code_execution,
+            }
             try:
                 summary = run_dc_rs(
                     model=model,
@@ -528,8 +576,11 @@ def main():
                     max_tokens=args.max_tokens,
                     temperature=args.temperature,
                     save_dir=args.save_dir,
-                    retrieve_top_k=args.retrieve_top_k,
+                    top_k=args.retrieve_top_k,
                     execute_code=not args.no_code_execution,
+                    cheatsheet_verbose=getattr(args, "cheatsheet_verbose", False),
+                    run_index=run_counter,
+                    run_flags=run_flags,
                 )
                 all_summaries.append(summary)
             except Exception as exc:
@@ -545,12 +596,6 @@ def main():
     for s in all_summaries:
         short = s["model"].split("/")[-1]
         log.info(f"  {short:<35} {s['task']:<22} {s['accuracy']:.1%}  ({s['correct']}/{s['total']})")
-    log.info("=" * 72)
-
-
-if __name__ == "__main__":
-    main()
-['correct']}/{s['total']})")
     log.info("=" * 72)
 
 

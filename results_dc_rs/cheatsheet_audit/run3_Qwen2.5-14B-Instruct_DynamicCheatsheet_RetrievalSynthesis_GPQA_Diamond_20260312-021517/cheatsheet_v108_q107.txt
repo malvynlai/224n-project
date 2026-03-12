@@ -1,0 +1,47 @@
+# Cheatsheet after Q108
+# Correct: False  |  Answer:   |  Target: (D)
+# Tokens: ~309  |  Memory items: 2
+# ======================================================================
+
+Version: 1
+
+## Reusable Code Snippets and Solution Strategies
+
+<memory_item>
+Time Dilation Calculation
+[Briefly describe the problem context, purpose, and key aspects of the solution.]
+Calculate the time dilation effect for an astronaut traveling at a high fraction of the speed of light. This involves understanding the Lorentz factor and applying it to determine the time experienced by the astronaut versus an observer on Earth.
+</description>
+<example>
+```python
+import math
+
+def time_dilation(v, distance):
+    c = 1  # Speed of light in arbitrary units
+    gamma = 1 / math.sqrt(1 - (v/c)**2)
+    t_earth = distance / v
+    t_astronaut = t_earth / gamma
+    return t_astronaut
+
+# Example usage
+v = 0.99999987  # Velocity as a fraction of the speed of light
+distance = 4.24  # Distance in light-years
+t_astronaut = time_dilation(v, distance)
+print(f"Time experienced by the astronaut: {t_astronaut:.2f} years")
+```
+</example>
+** Count: 1
+</memory_item>
+
+## General Problem-Solving Heuristics
+
+<memory_item>
+Relativistic Effects in Space Travel
+[Briefly describe the problem context, purpose, and key aspects of the solution.]
+When dealing with space travel at relativistic speeds, consider the effects of time dilation. Use the Lorentz factor to calculate the time experienced by the traveler versus an observer on Earth.
+</description>
+<example>
+Consider the scenario where an astronaut travels at a high fraction of the speed of light. Calculate the time dilation effect to understand how much time passes for the astronaut compared to an observer on Earth.
+</example>
+** Count: 1
+</memory_item>

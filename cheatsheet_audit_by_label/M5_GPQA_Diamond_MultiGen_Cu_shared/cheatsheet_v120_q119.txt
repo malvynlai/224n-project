@@ -1,0 +1,6 @@
+# Cheatsheet after Q120
+# Correct: True  |  Answer: (C)  |  Target: (C)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

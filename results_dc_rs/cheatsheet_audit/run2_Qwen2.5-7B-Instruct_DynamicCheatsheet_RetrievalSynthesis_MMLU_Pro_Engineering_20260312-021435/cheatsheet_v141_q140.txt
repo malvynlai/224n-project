@@ -1,0 +1,59 @@
+# Cheatsheet after Q141
+# Correct: False  |  Answer:   |  Target: (C)
+# Tokens: ~339  |  Memory items: 2
+# ======================================================================
+
+Version: 1.0
+
+## Reusable Code Snippets and Solution Strategies
+
+<memory_item>
+Calculate the suitable diameter for a shaft given its power, speed, and maximum bending moment using the ASME code.
+</memory_item>
+<example>
+To find the suitable diameter for a shaft, we need to use the ASME code, which provides guidelines for shaft design under sudden loading and heavy shock conditions. Here's how to approach the problem step-by-step:
+
+1. **Convert Power to Shaft Horsepower (SHP):**
+   \[
+   \text{SHP} = \frac{\text{HP}}{0.746}
+   \]
+   Given: \( \text{HP} = 160 \)
+   \[
+   \text{SHP} = \frac{160}{0.746} \approx 214.9 \text{ SHP}
+   \]
+
+2. **Calculate the Torque (T):**
+   \[
+   T = \frac{\text{Power (SHP)} \times 2\pi \times \text{Speed (rpm)}}{63025}
+   \]
+   Given: \( \text{Speed} = 400 \text{ rpm} \)
+   \[
+   T = \frac{214.9 \times 2\pi \times 400}{63025} \approx 16.7 \text{ ft-lbs}
+   \]
+
+3. **Convert Maximum Bending Moment (M) to ft-lbs:**
+   \[
+   M = 32000 \text{ lbs-in} \times \frac{1 \text{ ft-lb}}{12 \text{ in}} = 2666.67 \text{ ft-lbs}
+   \]
+
+4. **Determine the Factor of Safety (FOS):**
+   For sudden loading and heavy shock conditions, the ASME code suggests a factor of safety of 2.5.
+
+5. **Calculate the Required Diameter (D):**
+   \[
+   D = \left( \frac{32M}{\pi T \cdot \text{FOS}} \right)^{1/3}
+   \]
+   Substituting the values:
+   \[
+   D = \left( \frac{32 \times 2666.67}{\pi \times 16.7 \times 2.5} \right)^{1/3} \approx 4.5 \text{ in}
+   \]
+
+Therefore, the suitable diameter for the shaft is approximately 4.5 inches.
+</example>
+** Count: 1
+
+## General Problem-Solving Heuristics
+
+<memory_item>
+When dealing with shaft design under sudden loading and heavy shock conditions, always refer to the ASME code for guidelines on selecting the appropriate diameter.
+</memory_item>

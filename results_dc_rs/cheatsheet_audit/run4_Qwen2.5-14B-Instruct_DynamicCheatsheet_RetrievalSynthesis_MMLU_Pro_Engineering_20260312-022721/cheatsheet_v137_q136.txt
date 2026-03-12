@@ -1,0 +1,45 @@
+# Cheatsheet after Q137
+# Correct: False  |  Answer:   |  Target: (B)
+# Tokens: ~288  |  Memory items: 2
+# ======================================================================
+
+Version: 1.0
+
+## Reusable Code Snippets and Solution Strategies
+
+<memory_item>
+Calculate the suitable diameter for a shaft given power, speed, and maximum bending moment.
+<description>
+To determine the suitable diameter for a shaft, first convert the power to torque using the formula \( T = \frac{63025 \times P}{n} \). Then, use the bending stress formula \( \sigma_b = \frac{32M}{\pi d^3} \) to find the diameter, where \( M \) is the maximum bending moment and \( \sigma_{allow} \) is the allowable bending stress. Finally, check the torque capacity of each option to ensure it can handle the given torque and bending moment.
+</description>
+<example>
+```python
+import math
+
+def calculate_shaft_diameter(power, speed, max_bending_moment, allowable_stress):
+    torque = (63025 * power) / speed
+    diameter_cubed = (32 * max_bending_moment) / (math.pi * allowable_stress)
+    diameter = diameter_cubed ** (1/3)
+    return diameter
+
+power = 160  # hp
+speed = 400  # rpm
+max_bending_moment = 32000  # lbs-in
+allowable_stress = 12000  # psi
+
+diameter = calculate_shaft_diameter(power, speed, max_bending_moment, allowable_stress)
+print(f"The suitable diameter is approximately {diameter:.2f} inches.")
+```
+</example>
+** Count: 1
+</memory_item>
+
+## General Problem-Solving Heuristics
+
+<memory_item>
+When solving engineering problems involving shafts, always consider both torque and bending moment.
+<description>
+Ensure that the shaft can handle the required torque and bending moment by calculating the torque capacity and comparing it with the required torque.
+</description>
+** Count: 1
+</memory_item>

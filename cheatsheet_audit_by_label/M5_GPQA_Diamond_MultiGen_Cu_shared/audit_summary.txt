@@ -1,0 +1,53 @@
+========================================================================
+  CHEATSHEET AUDIT SUMMARY
+========================================================================
+  Model:     Qwen/Qwen2.5-14B-Instruct
+  Task:      GPQA_Diamond
+  Approach:  MultiGenerator_Cumulative
+  Generator: Qwen/Qwen2.5-7B-Instruct
+  Curator:   Qwen/Qwen2.5-14B-Instruct
+  Questions: 198
+  Accuracy:  28.8% (57/198)
+
+--- Token Growth ---
+  Initial: 1  Final: 423  Max: 423  Mean: 135
+  Exceeded 2K tokens: 0 times
+  Exceeded 4K tokens: 0 times
+
+--- Memory Items ---
+  Final count: 8
+  Unique items ever created: 16
+  Long-lived (present in 2+ versions): 16
+  Ephemeral (appeared once): 0
+  Top reused items:
+    [64x] [The major product of the reaction between 5-fluorocyclopenta-1,3-diene and male...
+    [64x] [The number of possible products when racemic 3-methylpent-1-ene is treated with...
+    [64x] [The number of stars that would be detectable using the ESPRESSO spectrograph is...
+    [64x] [The possible product when (1S,4R)-2-vinyl-2-azabicyclo[2.2.1]hept-5-ene undergo...
+    [64x] [The correct sequence of reagents and the resulting product B is (B) (i) LDA, (i...
+
+--- Reuse Analysis ---
+  Questions where cheatsheet existed: 70
+  Generator ignored cheatsheet: 1 (1% ignore rate)
+
+--- Effectiveness ---
+  Accuracy BEFORE cheatsheet exists: 25.0%
+  Accuracy AFTER  cheatsheet exists: 35.7%
+  Delta: +10.7%
+
+--- Structural Quality ---
+  Final word count: 326
+  Issues: no_usage_counters
+
+--- Abstraction Mismatch ---
+  Generator: 7.0B  Curator: 14.0B
+  Mismatch detected: True
+  WARNING: Curator is significantly larger than generator; cheatsheet may contain abstractions the generator cannot execute.
+
+--- Failure Patterns ---
+  Overly specific tricks: 0
+  Shallow summaries: 0
+  Stale (no update): 68
+
+Full audit data: results_multi_agent/cheatsheet_audit/Qwen2.5-14B-Instruct_MultiGenerator_Cumulative_GPQA_Diamond_20260311-171549
+========================================================================

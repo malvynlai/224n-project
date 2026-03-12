@@ -1,6 +1,0 @@
-# Cheatsheet after Q32
-# Correct: True  |  Answer: 14  |  Target: 14
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

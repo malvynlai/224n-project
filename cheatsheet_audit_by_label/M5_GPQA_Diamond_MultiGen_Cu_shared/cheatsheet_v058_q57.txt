@@ -1,0 +1,6 @@
+# Cheatsheet after Q58
+# Correct: False  |  Answer: (C) ~0.57  |  Target: (B)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)

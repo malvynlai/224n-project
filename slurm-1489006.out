@@ -1,0 +1,5 @@
+==============================================
+  Batch 1: 4 remaining Baseline (B2,B4,B6,B8)
+  DC-Cumulative: 7B+14B on MMLU+GPQA
+==============================================
+python: can't open file '/var/spool/slurmd/job1489006/run_all_evaluations.py': [Errno 2] No such file or directory

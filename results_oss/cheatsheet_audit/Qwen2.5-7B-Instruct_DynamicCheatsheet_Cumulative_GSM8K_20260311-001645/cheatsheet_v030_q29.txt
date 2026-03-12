@@ -1,6 +1,0 @@
-# Cheatsheet after Q30
-# Correct: True  |  Answer: 3000  |  Target: 3000
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

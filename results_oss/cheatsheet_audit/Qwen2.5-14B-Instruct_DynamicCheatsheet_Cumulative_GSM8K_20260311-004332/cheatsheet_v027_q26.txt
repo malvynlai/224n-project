@@ -1,6 +1,0 @@
-# Cheatsheet after Q27
-# Correct: True  |  Answer: 20  |  Target: 20
-# Tokens: ~1  |  Memory items: 0
-# ======================================================================
-
-(empty)

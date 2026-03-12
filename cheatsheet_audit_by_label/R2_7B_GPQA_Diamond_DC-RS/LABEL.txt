@@ -1,0 +1,5 @@
+Label: R2
+Experiment: DC-RS Normal
+Model: Qwen2.5-7B-Instruct
+Dataset: GPQA_Diamond
+Script: run_dc_rs_eval.py

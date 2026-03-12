@@ -1,0 +1,6 @@
+# Cheatsheet after Q122
+# Correct: True  |  Answer: D  |  Target: (D)
+# Tokens: ~1  |  Memory items: 0
+# ======================================================================
+
+(empty)
